@@ -1,0 +1,1 @@
+"""Mock Supplier API."""

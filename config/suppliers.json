@@ -1,0 +1,31 @@
+{
+  "suppliers": [
+    {
+      "supplier_id": "mock_api_supplier",
+      "display_name": "Mock API Supplier",
+      "source_type": "api",
+      "base_url": "http://localhost:8101",
+      "search_endpoint": "/products/search",
+      "enabled": true,
+      "priority": 10
+    },
+    {
+      "supplier_id": "mock_web_supplier",
+      "display_name": "Mock Portal Supplier",
+      "source_type": "portal",
+      "base_url": "http://localhost:8102",
+      "search_path": "/",
+      "enabled": true,
+      "priority": 20
+    },
+    {
+      "supplier_id": "mock_api_supplier_alt",
+      "display_name": "Mock Alternate API Supplier",
+      "source_type": "api",
+      "base_url": "http://localhost:8101",
+      "search_endpoint": "/products/search",
+      "enabled": true,
+      "priority": 30
+    }
+  ]
+}
