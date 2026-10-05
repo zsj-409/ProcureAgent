@@ -11,11 +11,17 @@ from .portal_executor import PortalExecutor
 class ExecutorRouter:
     """Choose an executor based solely on a supplier's configured channel."""
 
-    def __init__(self, settings: Settings, registry: SupplierRegistry):
+    def __init__(
+        self,
+        settings: Settings,
+        registry: SupplierRegistry,
+        trace=None,
+        model=None,
+    ):
         self._settings = settings
         self._registry = registry
         self._api_executor = ApiExecutor(settings.supplier_api_timeout_seconds)
-        self._portal_executor = PortalExecutor(settings)
+        self._portal_executor = PortalExecutor(settings, trace=trace, model=model)
 
     def suppliers(self) -> list[SupplierProfile]:
         """Return the enabled supplier catalog."""

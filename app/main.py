@@ -1,9 +1,12 @@
 """ProcureAgent FastAPI application."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
+from .agent.background import BackgroundTaskRunner
 from .agent.context import ContextBuilder
 from .agent.interpreter import ProcurementInterpreter
 from .agent.model import ModelClient, OpenAICompatibleModelClient
@@ -14,6 +17,7 @@ from .agent.validator import ExecutionValidator, PlanValidator
 from .api.agent import router as agent_router
 from .api.approvals import router as approvals_router
 from .api.tasks import router as tasks_router
+from .api.workbench import router as workbench_router
 from .executors.router import ExecutorRouter
 from .infrastructure.database import TaskRepository, build_session_factory
 from .infrastructure.settings import Settings, get_settings
@@ -43,9 +47,10 @@ def build_components(
     session_factory = build_session_factory(settings.database_url)
     repository = TaskRepository(session_factory)
     trace = TraceRecorder(repository)
+    background = BackgroundTaskRunner(None, repository)
     registry = registry or SupplierRegistry(config_path=settings.suppliers_config_path)
-    router = ExecutorRouter(settings, registry)
     model = model_client if model_client is not None else build_model_client(settings, trace)
+    router = ExecutorRouter(settings, registry, trace=trace, model=model)
     context_builder = ContextBuilder()
 
     fallback_planner = RuleBasedPlanner()
@@ -83,7 +88,10 @@ def build_components(
         validator=ExecutionValidator(),
         context_builder=context_builder,
         finalizer=finalizer,
+        settings=settings,
     )
+    orchestrator_ready = orchestrator
+    background.bind(orchestrator_ready)
     interpreter = ProcurementInterpreter(model)
     return {
         "repository": repository,
@@ -91,6 +99,8 @@ def build_components(
         "orchestrator": orchestrator,
         "interpreter": interpreter,
         "model": model,
+        "registry": registry,
+        "background": background,
     }
 
 
@@ -104,17 +114,19 @@ def create_app(
 
     settings = settings or get_settings()
     components = build_components(settings, model_client=model_client, registry=registry)
+    components["settings"] = settings
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         for key, value in components.items():
             setattr(app.state, key, value)
         yield
+        components["background"].shutdown()
 
     app = FastAPI(
         title=settings.app_name,
-        version="1.0.0",
-        description="A single-agent enterprise procurement system.",
+        version="2.0.0",
+        description="A single-agent enterprise procurement system with an adaptive portal runtime.",
         lifespan=lifespan,
     )
     for key, value in components.items():
@@ -122,10 +134,21 @@ def create_app(
     app.include_router(tasks_router, prefix="/api/v1/tasks")
     app.include_router(approvals_router, prefix="/api/v1/tasks")
     app.include_router(agent_router, prefix="/api/v1/agent")
+    app.include_router(workbench_router, prefix="/api/v1")
 
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok", "service": settings.app_name}
+
+    # /portal-frames must be mounted BEFORE the catch-all "/" SPA mount,
+    # otherwise the static mount swallows every portal-frame request.
+    frames_root = Path(settings.portal_frames_dir)
+    frames_root.mkdir(parents=True, exist_ok=True)
+    app.mount("/portal-frames", StaticFiles(directory=str(frames_root)), name="portal-frames")
+
+    static_dir = Path(__file__).parent / "webui" / "static"
+    if static_dir.is_dir():
+        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
 
     return app
 

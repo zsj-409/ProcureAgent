@@ -11,12 +11,11 @@ import threading
 import time
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
 import uvicorn
 from fastapi.testclient import TestClient
 
-from app.agent.model import ModelClient, ModelClientError, ModelResult, MockModelClient
+from app.agent.model import MockModelClient, ModelClient, ModelClientError, ModelResult
 from app.agent.validator import PlanValidator, ReviewDecision, ValidationDecision
 from app.infrastructure.settings import Settings
 from app.main import create_app
@@ -228,7 +227,7 @@ def main() -> None:
             agent_max_attempts=2,
             agent_max_task_seconds=60,
             agent_max_replans=1,
-            approval_threshold=Decimal("1000"),
+            approval_threshold=Decimal(1000),
         )
         app = create_app(settings, model_client=model, registry=registry)
         started = time.perf_counter()

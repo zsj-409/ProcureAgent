@@ -113,7 +113,7 @@ def _make_client(
         agent_max_attempts=2,
         agent_max_task_seconds=60,
         agent_max_replans=1,
-        approval_threshold=Decimal("1000"),
+        approval_threshold=Decimal(1000),
     )
     return TestClient(create_app(settings))
 

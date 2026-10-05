@@ -2,8 +2,8 @@
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from enum import Enum
-from typing import Awaitable, Callable
 
 from pydantic import BaseModel
 
@@ -77,7 +77,7 @@ class TaskRuntime:
                 result = await asyncio.wait_for(action(), timeout=timeout_seconds)
                 self.repository.complete_step_execution(execution_id, result)
                 return RuntimeResult(success=True, result=result)
-            except Exception as exc:  # noqa: BLE001 - bounded by max_attempts
+            except Exception as exc:
                 last_error = str(exc)
                 self.repository.fail_step_execution(execution_id, last_error)
                 if attempt < self.budget.max_attempts:

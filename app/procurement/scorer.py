@@ -5,7 +5,7 @@ from decimal import Decimal
 from pydantic import BaseModel
 
 from ..errors import ValidationError
-from .schemas import Preference, ProcurementRecommendation, SupplierQuote
+from .schemas import AwardLine, Preference, ProcurementRecommendation, SupplierQuote
 
 
 class ScoredQuote(BaseModel):
@@ -74,21 +74,96 @@ class ProcurementScorer:
             f"stock {best.stock_score}) using {preference.value} weights; "
             f"estimated total {estimated_total} USD."
         )
-        return ProcurementRecommendation(
+        recommendation = ProcurementRecommendation(
             recommended_supplier=best.quote.supplier_id,
             quotes=quotes,
             score=best.total_score,
             reason=reason,
             estimated_total=estimated_total,
         )
+        if best.quote.available_stock < quantity:
+            self._apply_split_award(recommendation, scored, quantity)
+        return recommendation
+
+    @staticmethod
+    def max_split_lines() -> int:
+        """Hard cap on how many suppliers one order may be split across."""
+
+        return 3
+
+    def _apply_split_award(
+        self,
+        recommendation: ProcurementRecommendation,
+        scored: list[ScoredQuote],
+        quantity: int,
+    ) -> None:
+        """Deterministically split the order when stock cannot cover it.
+
+        Greedy by weighted score (ties broken by lower unit price, then
+        supplier id for reproducibility); each supplier contributes up to its
+        available stock; at most ``max_split_lines`` lines. Any unfulfillable
+        remainder is reported as ``shortfall`` instead of being hidden.
+        """
+
+        remaining = quantity
+        lines: list[AwardLine] = []
+        ordered = sorted(
+            scored,
+            key=lambda item: (-item.total_score, item.quote.unit_price, item.quote.supplier_id),
+        )
+        for item in ordered:
+            if remaining <= 0 or len(lines) >= self.max_split_lines():
+                break
+            take = min(item.quote.available_stock, remaining)
+            if take <= 0:
+                continue
+            lines.append(
+                AwardLine(
+                    supplier_id=item.quote.supplier_id,
+                    quantity=take,
+                    unit_price=item.quote.unit_price,
+                    line_total=(item.quote.unit_price * take).quantize(Decimal("0.01")),
+                    delivery_days=item.quote.delivery_days,
+                )
+            )
+            remaining -= take
+
+        if len(lines) <= 1:
+            # A single line cannot beat the straightforward single award; keep
+            # the recommendation untouched (still reports the shortfall below).
+            recommendation.shortfall = max(quantity - sum(line.quantity for line in lines), 0)
+            if recommendation.shortfall:
+                recommendation.reason += (
+                    f" Note: requested {quantity} units but the best supplier stocks only"
+                    f" {recommendation.quotes[0].available_stock if recommendation.quotes else 0};"
+                    f" shortfall {recommendation.shortfall} unit(s)."
+                )
+            return
+
+        recommendation.award_split = lines
+        recommendation.shortfall = remaining
+        recommendation.estimated_total = sum(
+            (line.line_total for line in lines), Decimal(0)
+        ).quantize(Decimal("0.01"))
+        recommendation.recommended_supplier = lines[0].supplier_id
+        split_text = "; ".join(
+            f"{line.supplier_id} x{line.quantity} @ {line.unit_price} = {line.line_total}"
+            for line in lines
+        )
+        recommendation.reason += (
+            f" Split award across {len(lines)} suppliers (best supplier stock cannot cover"
+            f" {quantity} units): {split_text}. Estimated split total {recommendation.estimated_total} USD."
+        )
+        if remaining > 0:
+            recommendation.reason += f" Unfilled remainder: {remaining} unit(s)."
 
     @staticmethod
     def _weights(preference: Preference) -> tuple[Decimal, Decimal, Decimal]:
         """Return explicit scoring weights for a user preference."""
 
         return {
-            Preference.BALANCED: (Decimal("50"), Decimal("30"), Decimal("20")),
-            Preference.PRICE: (Decimal("70"), Decimal("20"), Decimal("10")),
-            Preference.DELIVERY: (Decimal("30"), Decimal("60"), Decimal("10")),
-            Preference.STOCK: (Decimal("30"), Decimal("20"), Decimal("50")),
+            Preference.BALANCED: (Decimal(50), Decimal(30), Decimal(20)),
+            Preference.PRICE: (Decimal(70), Decimal(20), Decimal(10)),
+            Preference.DELIVERY: (Decimal(30), Decimal(60), Decimal(10)),
+            Preference.STOCK: (Decimal(30), Decimal(20), Decimal(50)),
         }[preference]

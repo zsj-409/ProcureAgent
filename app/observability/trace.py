@@ -1,7 +1,7 @@
 """Persistent, structured trace recorder."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -23,7 +23,7 @@ class TraceEntry(BaseModel):
     model: str | None = None
     token_input: int | None = None
     token_output: int | None = None
-    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class TraceRecorder:

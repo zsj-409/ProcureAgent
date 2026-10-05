@@ -1,6 +1,6 @@
 """Human approval endpoint."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -27,10 +27,10 @@ async def approve_task(task_id: str, request: Request) -> TaskState:
 
     repository.create_approval(task_id, approver="human", decision="approved")
     state.status = TaskStatus.APPROVED
-    state.updated_at = datetime.now(timezone.utc)
+    state.updated_at = datetime.now(UTC)
     repository.save_state(state)
 
     state.status = TaskStatus.COMPLETED
-    state.updated_at = datetime.now(timezone.utc)
+    state.updated_at = datetime.now(UTC)
     repository.save_state(state)
     return state

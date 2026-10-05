@@ -8,6 +8,20 @@ from ..procurement.schemas import Preference, ProcurementRequest
 from .model import ModelClient
 from .prompts import INTERPRETER_SYSTEM
 
+# Trailing preference/budget phrases, in both Chinese and English. Everything
+# from the first match onward is treated as metadata, not as the product name.
+_PREFERENCE_TAIL = re.compile(
+    r"(?:预算|控制在|以内|优先|价格|交期|库存|便宜|最低价|最快交付|越快越好|越便宜越好"
+    r"|prefer\w*|lowest price|cheapest|fast\w* delivery|asap|in stock|best price"
+    r"|within (?:the )?budget|budget\b|under \$?\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+_BUDGET_PATTERNS = (
+    re.compile(r"预算[^\d]{0,6}(\d+(?:\.\d+)?)"),
+    re.compile(r"budget(?: of| under| within|:)?\s*\$?\s*(\d+(?:\.\d+)?)", re.IGNORECASE),
+    re.compile(r"under\s*\$\s*(\d+(?:\.\d+)?)", re.IGNORECASE),
+)
+
 
 class ProcurementInterpreter:
     """Interpret natural language into strict Pydantic procurement data."""
@@ -42,37 +56,59 @@ class ProcurementInterpreter:
         try:
             return self._fallback(message)
         except InterpretationError:
-            raise InterpretationError(f"Unable to interpret message: {last_error}")
+            raise InterpretationError(f"Unable to interpret message: {last_error}") from None
 
     def _fallback(self, message: str) -> ProcurementRequest:
-        """Deterministic fallback for simple messages when no model is configured."""
+        """Deterministic bilingual fallback for simple messages when no model is configured."""
 
-        quantity_match = re.search(r"(\d+)\s*(?=个|台|件|只|套|pcs|units|\s|$)", message)
+        quantity_match = re.search(r"(\d+)\s*(?=个|台|件|只|套|pcs|units|rows|\s|$)", message)
         if not quantity_match:
             raise InterpretationError("quantity is missing")
 
         quantity = int(quantity_match.group(1))
         product_part = message[quantity_match.end():]
-        product_part = re.sub(r"^(?:个|台|件|只|套|pcs|units)\s*", "", product_part)
-        product_name = re.sub(r"(预算|控制在|以内|优先|价格|交期|库存).*$", "", product_part)
-        product_name = re.sub(r"[\s，,。.!！?？]+$", "", product_name).strip(" ，,。")
+        product_part = re.sub(r"^(?:个|台|件|只|套|pcs|units|rows)\s*", "", product_part)
+        product_name = _PREFERENCE_TAIL.split(product_part, maxsplit=1)[0]
+        product_name = re.sub(r"[\s，,。.!！?？、]+$", "", product_name).strip(" ，,。")
+        # Drop dangling joiners left behind when a preference phrase was split off.
+        product_name = re.sub(r"[\s]+(?:的|,|，|and|with)$", "", product_name).strip(" ，,。")
         if not product_name:
             raise InterpretationError("product_name is missing")
 
-        preference = Preference.BALANCED
-        lower = message.lower()
-        if any(word in lower for word in ("优先交付", "交期优先", "速度", "交付速度")):
-            preference = Preference.DELIVERY
-        elif any(word in lower for word in ("价格优先", "便宜", "最低价")):
-            preference = Preference.PRICE
-        elif "库存" in lower:
-            preference = Preference.STOCK
-
-        budget_match = re.search(r"预算[^\d]{0,6}(\d+(?:\.\d+)?)", message)
-        max_budget = Decimal(budget_match.group(1)) if budget_match else None
+        preference = self._preference(message)
+        max_budget = self._budget(message)
         return ProcurementRequest(
             product_name=product_name,
             quantity=quantity,
             max_budget=max_budget,
             preference=preference,
         )
+
+    @staticmethod
+    def _preference(message: str) -> Preference:
+        """Map bilingual preference wording onto the strict preference enum."""
+
+        lower = message.lower()
+        delivery_words = (
+            "优先交付", "交期优先", "交付速度", "速度", "最快", "fast delivery", "asap",
+        )
+        price_words = (
+            "价格优先", "最低价", "便宜", "价格最低", "lowest price", "cheapest", "best price",
+        )
+        if any(word in lower for word in delivery_words):
+            return Preference.DELIVERY
+        if any(word in lower for word in price_words):
+            return Preference.PRICE
+        if "库存" in lower or "in stock" in lower or "stock" in lower:
+            return Preference.STOCK
+        return Preference.BALANCED
+
+    @staticmethod
+    def _budget(message: str) -> Decimal | None:
+        """Extract a budget number from either Chinese or English phrasing."""
+
+        for pattern in _BUDGET_PATTERNS:
+            match = pattern.search(message)
+            if match:
+                return Decimal(match.group(1))
+        return None

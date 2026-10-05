@@ -1,6 +1,6 @@
 """Pydantic models for the procurement domain."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Literal
@@ -36,7 +36,7 @@ class SupplierQuote(BaseModel):
     available_stock: int = Field(ge=0)
     delivery_days: int = Field(ge=0)
     source_type: Literal["api", "portal"]
-    collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    collected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PlanAction(str, Enum):
@@ -62,8 +62,23 @@ class ProcurementPlan(BaseModel):
     steps: list[PlanStep] = Field(default_factory=list)
 
 
+class AwardLine(BaseModel):
+    """One supplier line in a split-award recommendation."""
+
+    supplier_id: str
+    quantity: int = Field(gt=0)
+    unit_price: Decimal
+    line_total: Decimal
+    delivery_days: int = Field(ge=0)
+
+
 class ProcurementRecommendation(BaseModel):
-    """The deterministic purchase recommendation."""
+    """The deterministic purchase recommendation.
+
+    ``award_split`` is empty for single-source awards; when no single supplier
+    can cover the requested quantity from stock, the order is split across
+    suppliers (at most ``max_split_lines``) by effective score.
+    """
 
     recommended_supplier: str
     quotes: list[SupplierQuote]
@@ -73,6 +88,8 @@ class ProcurementRecommendation(BaseModel):
     partial_result: bool = False
     approval_required: bool = False
     summary: str = ""
+    award_split: list[AwardLine] = Field(default_factory=list)
+    shortfall: int = 0
 
 
 class AgentExecutionResult(BaseModel):

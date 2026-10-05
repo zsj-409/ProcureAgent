@@ -48,7 +48,7 @@ async def test_interpreter_structured_output():
     expected = ProcurementRequest(
         product_name="MX Master 3S",
         quantity=20,
-        max_budget=Decimal("1500"),
+        max_budget=Decimal(1500),
         preference=Preference.DELIVERY,
     )
     model = MockModelClient(structured_responses={"ProcurementRequest": expected})
@@ -214,7 +214,7 @@ def test_execution_validator():
     valid = SupplierQuote(
         supplier_id="s",
         product_name="MX Master 3S",
-        unit_price=Decimal("10"),
+        unit_price=Decimal(10),
         available_stock=20,
         delivery_days=2,
         source_type="api",
@@ -222,7 +222,13 @@ def test_execution_validator():
     low_stock = valid.model_copy(update={"available_stock": 2})
 
     assert ExecutionValidator().validate([valid], request).decision == ValidationDecision.CONTINUE
-    assert ExecutionValidator().validate([low_stock], request).decision == ValidationDecision.FAIL
+    low_stock_result = ExecutionValidator().validate([low_stock], request)
+    assert low_stock_result.decision == ValidationDecision.CONTINUE
+    assert low_stock_result.needs_review is True
+    assert "split the award" in low_stock_result.reason
+
+    empty = ExecutionValidator().validate([], request)
+    assert empty.decision == ValidationDecision.FAIL
 
 
 @pytest.mark.asyncio
@@ -230,7 +236,7 @@ async def test_finalizer_deterministic_template_when_model_missing():
     recommendation = ProcurementRecommendation(
         recommended_supplier="mock_api_supplier",
         quotes=[],
-        score=Decimal("85"),
+        score=Decimal(85),
         reason="cheapest",
         estimated_total=Decimal("160.00"),
     )
@@ -278,7 +284,7 @@ def test_natural_language_end_to_end(supplier_api_url):
             "ProcurementRequest": ProcurementRequest(
                 product_name="MX Master 3S",
                 quantity=20,
-                max_budget=Decimal("1500"),
+                max_budget=Decimal(1500),
                 preference=Preference.DELIVERY,
             ),
             "ProcurementPlan": ProcurementPlan(
@@ -295,7 +301,7 @@ def test_natural_language_end_to_end(supplier_api_url):
     )
     settings = Settings(
         database_url="sqlite:///:memory:",
-        approval_threshold=Decimal("1000"),
+        approval_threshold=Decimal(1000),
         agent_max_steps=20,
         agent_max_attempts=2,
         agent_max_task_seconds=60,

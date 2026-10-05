@@ -18,9 +18,10 @@ from app.infrastructure.settings import Settings
 from app.main import create_app
 from app.suppliers.base import SupplierProfile, SupplierRegistry
 
-
 CALLS = {"A": 0, "B": 0, "C": 0}
+A_BAD_PAYLOAD = True
 B_SHOULD_FAIL = True
+C_BAD_PAYLOAD = True
 
 
 def _free_port() -> int:
@@ -59,6 +60,16 @@ def _build_supplier_app() -> FastAPI:
     @app.get("/a")
     def supplier_a(product_name: str = Query(...), quantity: int = Query(...)):
         CALLS["A"] += 1
+        if A_BAD_PAYLOAD:
+            # Valid HTTP response with an unparseable quote: the step completes
+            # (and is checkpointed) but the normalizer drops the payload.
+            return {
+                "product_name": "Resume Mouse",
+                "unit_price": "",
+                "stock": 1,
+                "delivery_days": 1,
+                "supplier_id": "supplier_a",
+            }
         return _quote("supplier_a", "5.00", 1)
 
     @app.get("/b")
@@ -71,6 +82,14 @@ def _build_supplier_app() -> FastAPI:
     @app.get("/c")
     def supplier_c(product_name: str = Query(...), quantity: int = Query(...)):
         CALLS["C"] += 1
+        if C_BAD_PAYLOAD:
+            return {
+                "product_name": "Resume Mouse",
+                "unit_price": "not-a-price",
+                "stock": 1,
+                "delivery_days": 1,
+                "supplier_id": "supplier_c",
+            }
         return _quote("supplier_c", "4.00", 1)
 
     return app
@@ -108,20 +127,24 @@ def _registry(server_url: str) -> SupplierRegistry:
 
 
 def test_resume_restores_from_sqlite_checkpoint(tmp_path):
-    global B_SHOULD_FAIL
+    global A_BAD_PAYLOAD, B_SHOULD_FAIL, C_BAD_PAYLOAD
     server_url = _serve(_build_supplier_app())
     db_path = tmp_path / "resume.db"
     settings = Settings(
         database_url=f"sqlite:///{db_path}",
-        approval_threshold=Decimal("1000"),
+        approval_threshold=Decimal(1000),
         agent_max_attempts=2,
         agent_max_task_seconds=60,
         agent_max_replans=1,
         supplier_api_timeout_seconds=5,
     )
 
-    # First execution cycle: A succeeds (but low stock), B fails, C succeeds.
+    # First execution cycle: A and C return unparseable payloads, B is down.
+    # Normalization drops A and C, so the quote set is empty -> FAILED while
+    # their step executions still reached COMPLETED (checkpointed).
+    A_BAD_PAYLOAD = True
     B_SHOULD_FAIL = True
+    C_BAD_PAYLOAD = True
     with TestClient(create_app(settings, registry=_registry(server_url))) as client:
         response = client.post(
             "/api/v1/tasks",
@@ -142,15 +165,19 @@ def test_resume_restores_from_sqlite_checkpoint(tmp_path):
     assert CALLS["B"] == 2
     assert CALLS["C"] == 1
 
-    # Second execution cycle: rebuild the whole app after B recovers.
+    # Second execution cycle: rebuild the whole app after suppliers recover.
+    A_BAD_PAYLOAD = False
     B_SHOULD_FAIL = False
+    C_BAD_PAYLOAD = False
     with TestClient(create_app(settings, registry=_registry(server_url))) as client:
         resume = client.post(f"/api/v1/tasks/{task_id}/resume")
         assert resume.status_code == 200, resume.text
         assert resume.json()["task_id"] == task_id
         assert resume.json()["status"] == "COMPLETED"
 
-    # A and C were restored from checkpoint and never contacted again.
+    # A and C had completed steps (bad payloads, but HTTP-successful), so
+    # resume reuses their checkpoints and never contacts them again; only B
+    # is retried.
     assert CALLS["A"] == 1
     assert CALLS["B"] == 3
     assert CALLS["C"] == 1

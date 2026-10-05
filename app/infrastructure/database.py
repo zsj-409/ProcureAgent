@@ -1,7 +1,7 @@
 """SQLite persistence and repository layer."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, create_engine
@@ -9,7 +9,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from ..agent.state import TaskState, TaskStatus
-from ..procurement.schemas import ProcurementPlan, ProcurementRecommendation, ProcurementRequest
+from ..procurement.schemas import (
+    ProcurementPlan,
+    ProcurementRecommendation,
+    ProcurementRequest,
+)
 
 
 class Base(DeclarativeBase):
@@ -98,7 +102,7 @@ def build_session_factory(database_url: str) -> sessionmaker:
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TaskRepository:
@@ -132,6 +136,28 @@ class TaskRepository:
 
         with self._session_factory() as session:
             return session.get(TaskRecord, task_id)
+
+    def list_tasks(self, limit: int = 50) -> list[TaskRecord]:
+        """Return the most recent task records, newest first."""
+
+        with self._session_factory() as session:
+            query = (
+                session.query(TaskRecord)
+                .order_by(TaskRecord.created_at.desc(), TaskRecord.id.desc())
+                .limit(max(1, min(limit, 200)))
+            )
+            return list(query.all())
+
+    def list_approvals(self, task_id: str) -> list[ApprovalRecord]:
+        """Return the approval history for one task."""
+
+        with self._session_factory() as session:
+            query = (
+                session.query(ApprovalRecord)
+                .filter(ApprovalRecord.task_id == task_id)
+                .order_by(ApprovalRecord.created_at.asc())
+            )
+            return list(query.all())
 
     def to_state(self, record: TaskRecord) -> TaskState:
         """Convert a persisted record into a domain ``TaskState``."""
@@ -187,6 +213,21 @@ class TaskRepository:
             record.error = state.error
             record.partial_result = state.partial_result
             record.updated_at = state.updated_at
+            session.commit()
+
+    def save_state_record(self, record: TaskRecord) -> None:
+        """Persist field-level changes on an existing task record."""
+
+        with self._session_factory() as session:
+            persisted = session.get(TaskRecord, record.id)
+            if persisted is None:
+                raise ValueError(f"Task {record.id} does not exist")
+            persisted.status = record.status
+            persisted.current_step = record.current_step
+            persisted.completed_steps = record.completed_steps
+            persisted.error = record.error
+            persisted.partial_result = record.partial_result
+            persisted.updated_at = record.updated_at
             session.commit()
 
     def save_recommendation(self, task_id: str, recommendation: ProcurementRecommendation) -> None:

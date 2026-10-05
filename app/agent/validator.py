@@ -4,7 +4,12 @@ from enum import Enum
 
 from pydantic import BaseModel
 
-from ..procurement.schemas import PlanAction, ProcurementPlan, ProcurementRequest, SupplierQuote
+from ..procurement.schemas import (
+    PlanAction,
+    ProcurementPlan,
+    ProcurementRequest,
+    SupplierQuote,
+)
 from ..suppliers.base import SupplierProfile
 from .model import ModelClient
 from .prompts import REVIEW_SYSTEM
@@ -78,7 +83,12 @@ class ExecutionValidator:
     """Deterministic quote checks plus an optional single LLM review."""
 
     def validate(self, quotes: list[SupplierQuote], request: ProcurementRequest) -> ValidationResult:
-        """Check whether collected quotes are sufficient for a decision."""
+        """Check whether collected quotes are sufficient for a decision.
+
+        Stock shortfalls are not fatal: the scorer's split-award step can
+        cover the quantity across suppliers, and any remainder is reported as
+        an explicit shortfall. Only a completely empty quote set fails here.
+        """
 
         if not quotes:
             return ValidationResult(
@@ -87,22 +97,21 @@ class ExecutionValidator:
             )
 
         sufficient = [quote for quote in quotes if quote.available_stock >= request.quantity]
-        if not sufficient:
-            return ValidationResult(
-                decision=ValidationDecision.FAIL,
-                reason="All supplier quotes have insufficient stock",
-            )
-
-        if len(sufficient) != len(quotes):
+        if sufficient:
             return ValidationResult(
                 decision=ValidationDecision.CONTINUE,
-                reason="Some quotes have insufficient stock and will be scored lower",
-                needs_review=True,
+                reason="Collected quotes are sufficient",
             )
 
+        total_stock = sum(quote.available_stock for quote in quotes)
         return ValidationResult(
             decision=ValidationDecision.CONTINUE,
-            reason="Collected quotes are sufficient",
+            reason=(
+                f"No single supplier stocks {request.quantity} units (total available "
+                f"{total_stock}); scoring will split the award across suppliers and "
+                f"report any shortfall."
+            ),
+            needs_review=True,
         )
 
     async def decide(

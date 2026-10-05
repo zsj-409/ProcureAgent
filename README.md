@@ -142,6 +142,32 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 Swagger: `http://localhost:8000/docs`
 
+Workbench: `http://localhost:8000/` — the interactive web UI ships with the app itself (no build step, no CDN).
+
+## Web Workbench (v2)
+
+The self-contained SPA at `app/webui/static/` presents and operates the whole system:
+
+- **总览 Overview** — live counters, the execution pipeline, and the design principles.
+- **新建采购 New Task** — natural-language input (bilingual), live per-step progress polling, then the full result: recommendation card, quote comparison, split-award table, and the approval gate (approve/reject).
+- **任务记录 Tasks** — every task with status pills, search, and one-click resume for failed tasks.
+- **Task detail** — interpreter output, validated plan, scored quotes with the best offer highlighted, approval actions, execution trace, and the **portal automation replay**: per-step JPEG frames captured by the adaptive portal agent, so self-healing is visible (`click gate → fill → done`).
+- **供应商 Suppliers** — channels with live `/health` probes and latency.
+
+New API endpoints in v2: `GET /api/v1/tasks` (list), `POST /api/v1/tasks/{id}/reject`, `GET /api/v1/tasks/{id}/approvals`, `GET /api/v1/tasks/{id}/portal-steps`, `GET /api/v1/suppliers`, `GET /api/v1/overview`. `POST /api/v1/agent/run` now defaults to synchronous behavior for compatibility; pass `?wait=false` to start a background task (dedicated worker thread with its own event loop) and poll.
+
+## What v2 Changed (Deep-Dive)
+
+The v1 MVP implemented the idea only at its surface. v2 deepens it along the original intent:
+
+1. **Adaptive portal agent** (`app/executors/portal_agent.py`) — the browser-use core is back, bounded and safe. The agent takes a numbered DOM snapshot (inputs, selects, buttons, tables, card grids), chooses actions from a strict vocabulary (`fill`/`select`/`click`/`press_enter`/`done`), and extracts deterministically (table columns mapped by header keywords; card text by anchored regex). Elements are addressed by per-kind ordinal, so randomized or drifted markup cannot break it. **Guards**: bounded action budget, no navigation actions, and form values restricted to the product name and enumerated select options — page text is untrusted and can never drive form input.
+2. **Three-level escalation ladder** (`PortalExecutor`) — fixed script (fast, deterministic) → heuristic agent (no LLM needed) → LLM agent (snapshot in, structured action out). Structural failures (selector drift, interstitial gates) escalate immediately without wasting retries; only transient failures retry. One browser session is shared across the whole ladder. Every escalation and every adaptive step is traced, and each step saves a JPEG frame for UI replay.
+3. **Chaos portal** (`mock_services`) — a second card-layout portal (no `<table>`, category select, pagination) plus chaos mode with per-seed randomized ids/classes and an interstitial session-check gate. The fixed script provably fails; the adaptive agent provably recovers.
+4. **Split-award optimization** (`ProcurementScorer`) — when no single supplier covers the quantity, the order is split deterministically (greedy by weighted score, capped at 3 lines) with an explicit `shortfall`. Stock shortfalls no longer kill the task in `ExecutionValidator`; a shortfall always routes to human approval instead of auto-approving a partial order.
+5. **Parallel collection** — supplier collection runs with bounded concurrency (semaphore, `PROCUREAGENT_COLLECT_CONCURRENCY`), preserving per-supplier checkpoints and idempotency. A 5-supplier task dropped from ~80 s to ~5 s after fail-fast escalation and shared sessions.
+6. **Background execution** — `agent/run?wait=false` submits to a `BackgroundTaskRunner` (worker thread + own event loop), so browser tasks never block the HTTP call, in uvicorn and in tests alike.
+7. **Bilingual interpreter fallback** — the no-LLM regex fallback now strips English preference/budget phrases (`prefer lowest price`, `budget under 1200`) as well as Chinese ones, so zero-credential demos parse correctly.
+
 ## Example
 
 ```text
@@ -157,10 +183,10 @@ The system interprets the request, plans the workflow, collects supplier quotes,
 pytest -q
 ```
 
-Current v1.0 Final verification result:
+Current v2 verification result:
 
 ```text
-23 passed
+38 passed
 ```
 
 Evaluation:

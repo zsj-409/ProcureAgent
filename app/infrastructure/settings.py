@@ -38,6 +38,20 @@ class Settings(BaseSettings):
     web_headless: bool = True
     web_allow_launch: bool = True
 
+    # Portal steps launch a real browser; they need a larger slice of the
+    # task budget than API calls. The orchestrator uses this per portal step.
+    portal_step_timeout_seconds: float = 40.0
+    api_step_timeout_seconds: float = 15.0
+
+    # Adaptive portal agent: escalation ladder fixed-script → heuristic → LLM.
+    portal_adaptive: bool = True
+    portal_max_actions: int = 10
+    portal_frames: bool = True
+    portal_frames_dir: str = "data/portal_frames"
+
+    # Concurrent supplier collection (bounded by a semaphore in the orchestrator).
+    collect_concurrency: int = 4
+
     # LLM is an optional enhancement. When no key is configured the system uses
     # RuleBasedPlanner and deterministic templates.
     llm_api_key: str | None = None
@@ -48,11 +62,11 @@ class Settings(BaseSettings):
     # Runtime execution budget.
     agent_max_steps: int = 20
     agent_max_attempts: int = 2
-    agent_max_task_seconds: float = 60.0
+    agent_max_task_seconds: float = 150.0
     agent_max_replans: int = 1
 
     # Purchases at or above this total require human approval.
-    approval_threshold: Decimal = Decimal("1000")
+    approval_threshold: Decimal = Decimal(1000)
 
 
 @lru_cache

@@ -19,6 +19,38 @@
       "priority": 20
     },
     {
+      "supplier_id": "mock_web_supplier_v2",
+      "display_name": "Mock Portal Supplier (card layout, adaptive)",
+      "source_type": "portal",
+      "base_url": "http://localhost:8102",
+      "search_path": "/portal?layout=v2",
+      "search_input_selector": null,
+      "search_button_selector": null,
+      "result_row_selector": null,
+      "name_selector": null,
+      "price_selector": null,
+      "stock_selector": null,
+      "delivery_selector": null,
+      "enabled": true,
+      "priority": 25
+    },
+    {
+      "supplier_id": "mock_web_supplier_chaos",
+      "display_name": "Mock Portal Supplier (chaos markup, self-healing)",
+      "source_type": "portal",
+      "base_url": "http://localhost:8102",
+      "search_path": "/portal?chaos=demo&layout=v2",
+      "search_input_selector": "#search-input",
+      "search_button_selector": "#search-button",
+      "result_row_selector": "#results tbody tr",
+      "name_selector": ".name",
+      "price_selector": ".price",
+      "stock_selector": ".stock",
+      "delivery_selector": ".delivery",
+      "enabled": true,
+      "priority": 30
+    },
+    {
       "supplier_id": "mock_api_supplier_alt",
       "display_name": "Mock Alternate API Supplier",
       "source_type": "api",

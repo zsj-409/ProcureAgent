@@ -21,14 +21,16 @@ class SupplierProfile(BaseModel):
     search_endpoint: str | None = None
 
     # Portal suppliers append this to ``base_url`` and use the selectors below.
+    # When the fixed-script selectors are unknown (None), the portal executor
+    # skips the script and goes straight to the adaptive portal agent.
     search_path: str | None = None
-    search_input_selector: str = "#search-input"
-    search_button_selector: str = "#search-button"
-    result_row_selector: str = "#results tbody tr"
-    name_selector: str = ".name"
-    price_selector: str = ".price"
-    stock_selector: str = ".stock"
-    delivery_selector: str = ".delivery"
+    search_input_selector: str | None = "#search-input"
+    search_button_selector: str | None = "#search-button"
+    result_row_selector: str | None = "#results tbody tr"
+    name_selector: str | None = ".name"
+    price_selector: str | None = ".price"
+    stock_selector: str | None = ".stock"
+    delivery_selector: str | None = ".delivery"
 
 
 class SupplierRegistry:

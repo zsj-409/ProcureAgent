@@ -49,3 +49,9 @@ test-results/
 # Python tooling
 .mypy_cache/
 .ruff_cache/
+
+# Runtime artifacts
+procure_agent.db
+procure_agent.db-journal
+work/
+data/

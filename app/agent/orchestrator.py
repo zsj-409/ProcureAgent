@@ -1,12 +1,14 @@
 """The core procurement execution flow."""
 
+import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ..errors import SupplierUnavailableError
 from ..executors.base import ExecutorTask
 from ..executors.router import ExecutorRouter
 from ..infrastructure.database import TaskRepository
+from ..infrastructure.settings import Settings
 from ..observability.trace import TraceRecorder
 from ..procurement.normalizer import QuoteNormalizer
 from ..procurement.policy import ProcurementPolicy
@@ -23,7 +25,7 @@ from .context import ContextBuilder
 from .model import ModelClient
 from .planner import Planner
 from .prompts import FINALIZER_SYSTEM
-from .runtime import ExecutionBudget, TaskRuntime
+from .runtime import TaskRuntime
 from .state import TaskState, TaskStatus
 from .validator import ExecutionValidator, ValidationDecision
 
@@ -87,7 +89,9 @@ class ProcurementOrchestrator:
         validator: ExecutionValidator,
         context_builder: ContextBuilder,
         finalizer: RecommendationFinalizer,
+        settings: Settings | None = None,
     ):
+        self._settings = settings
         self.planner = planner
         self.router = router
         self.normalizer = normalizer
@@ -103,7 +107,7 @@ class ProcurementOrchestrator:
     async def run(self, task_id: str, request: ProcurementRequest) -> TaskState:
         """Run a new procurement task."""
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         state = TaskState(
             task_id=task_id,
             status=TaskStatus.PENDING,
@@ -166,8 +170,6 @@ class ProcurementOrchestrator:
         supplier_map: dict[str, SupplierProfile] = {s.supplier_id: s for s in suppliers}
         quotes: list[SupplierQuote] = []
         failures: dict[str, str] = {}
-        executed_steps = 0
-        started_at = time.perf_counter()
         replans = 0
 
         await self._collect_suppliers(
@@ -180,7 +182,6 @@ class ProcurementOrchestrator:
             failures,
             resume=resume,
         )
-        executed_steps = len(quotes) + len(failures)
 
         decision = await self._validate(task_id, request, plan, state, quotes, failures)
 
@@ -224,7 +225,9 @@ class ProcurementOrchestrator:
 
         state.current_step = "check_policy"
         self._save(state)
-        policy_decision = self.policy.evaluate(recommendation.estimated_total, request.max_budget)
+        policy_decision = self.policy.evaluate(
+            recommendation.estimated_total, request.max_budget, shortfall=recommendation.shortfall
+        )
         recommendation.approval_required = policy_decision.requires_approval
         self._trace_success(task_id, "check_policy", "ProcurementPolicy", "evaluate", 0)
 
@@ -261,65 +264,122 @@ class ProcurementOrchestrator:
         *,
         resume: bool,
     ) -> None:
-        for step in plan.steps:
-            if step.action != PlanAction.COLLECT_SUPPLIER or not step.supplier_id:
-                continue
-            supplier_id = step.supplier_id
-            step_name = f"collect_{supplier_id}"
-            state.current_step = step_name
-            self._save(state)
+        """Collect quotes for all plan steps, bounded-concurrency parallel.
 
-            supplier = supplier_map.get(supplier_id)
-            if supplier is None:
-                failures[supplier_id] = "Unknown supplier"
-                self._trace_error(task_id, step_name, "ExecutorRouter", "route", failures[supplier_id], 0)
-                continue
+        Each supplier keeps its own checkpoint/idempotency semantics, so a
+        resumed task still reuses prior successful collections and only calls
+        the suppliers that have not succeeded yet.
+        """
 
-            if resume:
-                cached = self.repository.get_completed_step_result(task_id, step_name, supplier_id)
-                if cached is not None:
-                    self._add_quote_from_raw(task_id, request, supplier, cached, quotes, step_name)
-                    self.trace.record(
-                        task_id=task_id,
-                        step=step_name,
-                        component="TaskRuntime",
-                        action="checkpoint_reused",
-                        status="SUCCESS",
-                        duration_ms=0,
-                    )
-                    continue
-
-            async def collect() -> dict:
-                executor = self.router.route(supplier)
-                result = await executor.execute(
-                    ExecutorTask(
-                        task_id=task_id,
-                        supplier=supplier,
-                        product_name=request.product_name,
-                        quantity=request.quantity,
-                    )
+        collect_steps = [
+            step
+            for step in plan.steps
+            if step.action == PlanAction.COLLECT_SUPPLIER and step.supplier_id
+        ]
+        semaphore = asyncio.Semaphore(self._collect_concurrency())
+        await asyncio.gather(
+            *(
+                self._collect_one(
+                    task_id,
+                    request,
+                    state,
+                    supplier_map,
+                    quotes,
+                    failures,
+                    supplier_id=step.supplier_id or "",
+                    resume=resume,
+                    semaphore=semaphore,
                 )
-                if not result.success or not result.quote:
-                    raise SupplierUnavailableError(result.error or "No quote returned")
-                return result.quote
+                for step in collect_steps
+            )
+        )
 
-            started = time.perf_counter()
+    async def _collect_one(
+        self,
+        task_id: str,
+        request: ProcurementRequest,
+        state: TaskState,
+        supplier_map: dict[str, SupplierProfile],
+        quotes: list[SupplierQuote],
+        failures: dict[str, str],
+        *,
+        supplier_id: str,
+        resume: bool,
+        semaphore: asyncio.Semaphore,
+    ) -> None:
+        step_name = f"collect_{supplier_id}"
+        state.current_step = step_name
+        self._save(state)
+
+        supplier = supplier_map.get(supplier_id)
+        if supplier is None:
+            failures[supplier_id] = "Unknown supplier"
+            self._trace_error(task_id, step_name, "ExecutorRouter", "route", failures[supplier_id], 0)
+            return
+
+        if resume:
+            cached = self.repository.get_completed_step_result(task_id, step_name, supplier_id)
+            if cached is not None:
+                self._add_quote_from_raw(task_id, request, supplier, cached, quotes, step_name)
+                self.trace.record(
+                    task_id=task_id,
+                    step=step_name,
+                    component="TaskRuntime",
+                    action="checkpoint_reused",
+                    status="SUCCESS",
+                    duration_ms=0,
+                )
+                return
+
+        async def collect() -> dict:
+            executor = self.router.route(supplier)
+            result = await executor.execute(
+                ExecutorTask(
+                    task_id=task_id,
+                    supplier=supplier,
+                    product_name=request.product_name,
+                    quantity=request.quantity,
+                )
+            )
+            if not result.success or not result.quote:
+                raise SupplierUnavailableError(result.error or "No quote returned")
+            return result.quote
+
+        started = time.perf_counter()
+        async with semaphore:
             runtime_result = await self.runtime.execute(
                 task_id=task_id,
                 step_name=step_name,
                 supplier_id=supplier_id,
-                timeout_seconds=self._step_timeout(),
+                timeout_seconds=self._step_timeout_for(supplier),
                 action=collect,
             )
-            duration_ms = int((time.perf_counter() - started) * 1000)
-            if runtime_result.success and runtime_result.result:
-                self._add_quote_from_raw(
-                    task_id, request, supplier, runtime_result.result, quotes, step_name
-                )
-                self._trace_success(task_id, step_name, supplier.source_type, "execute", duration_ms)
-            else:
-                failures[supplier_id] = runtime_result.error or "No quote returned"
-                self._trace_error(task_id, step_name, supplier.source_type, "execute", failures[supplier_id], duration_ms)
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        if runtime_result.success and runtime_result.result:
+            self._add_quote_from_raw(
+                task_id, request, supplier, runtime_result.result, quotes, step_name
+            )
+            self._trace_success(task_id, step_name, supplier.source_type, "execute", duration_ms)
+        else:
+            failures[supplier_id] = runtime_result.error or "No quote returned"
+            self._trace_error(
+                task_id, step_name, supplier.source_type, "execute",
+                failures[supplier_id], duration_ms,
+            )
+
+    def _collect_concurrency(self) -> int:
+        """Bounded parallelism for supplier collection (settings-driven)."""
+
+        concurrency = getattr(self._settings, "collect_concurrency", None) if self._settings else None
+        return int(concurrency) if concurrency else 4
+
+    def _step_timeout_for(self, supplier: SupplierProfile) -> float:
+        """Browser-backed portal steps get a larger timeout slice than API calls."""
+
+        settings = self._settings
+        if supplier.source_type == "portal":
+            return float(getattr(settings, "portal_step_timeout_seconds", 40.0))
+        return float(getattr(settings, "api_step_timeout_seconds", 15.0))
 
     def _add_quote_from_raw(
         self,
@@ -338,7 +398,7 @@ class ProcurementOrchestrator:
                 source_type=supplier.source_type,
             )
             quotes.append(quote)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._trace_error(task_id, step_name, "QuoteNormalizer", "normalize", str(exc), 0)
 
     async def _validate(
@@ -377,7 +437,7 @@ class ProcurementOrchestrator:
         return state
 
     def _save(self, state: TaskState) -> None:
-        state.updated_at = datetime.now(timezone.utc)
+        state.updated_at = datetime.now(UTC)
         self.repository.save_state(state)
 
     def _trace_success(self, task_id, step, component, action, duration_ms) -> None:

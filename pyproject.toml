@@ -3,3 +3,28 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "RUF"]
+# The project is bilingual (zh-CN UI strings, EN code): fullwidth punctuation
+# in string literals is intentional, not a typo.
+ignore = ["RUF001", "RUF002", "RUF003"]
+# UP042 (StrEnum migration) would change runtime behavior of persisted enums;
+# the original codebase predates it and enums are serialized to SQLite.
+extend-ignore = ["UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+# The eval runner intentionally formats long assertion/report lines inline.
+"tests/eval/*" = ["E501"]
+# LLM/executor boundaries intentionally catch broadly and fall back.
+"app/agent/orchestrator.py" = ["BLE001"]
+"app/agent/planner.py" = ["BLE001"]
+"app/agent/validator.py" = ["BLE001"]
+"app/executors/*" = ["BLE001"]
+"app/api/*" = ["BLE001"]
+"app/agent/background.py" = ["BLE001"]
+"tests/*" = ["S101", "PLW0602"]

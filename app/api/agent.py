@@ -1,11 +1,24 @@
-"""Natural-language agent endpoint."""
+"""Natural-language agent endpoint.
 
+``POST /agent/run`` interprets the message and starts the task in the
+background so browsers and slow suppliers never block the HTTP call; the UI
+polls ``GET /tasks/{task_id}`` for state transitions. Pass ``?wait=true`` to
+get the original synchronous behavior (used by tests and CLI callers).
+"""
+
+import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from ..procurement.schemas import AgentExecutionResult, ProcurementPlan, ProcurementRequest
+from ..procurement.schemas import (
+    AgentExecutionResult,
+    ProcurementPlan,
+    ProcurementRequest,
+)
+
+logger = logging.getLogger("procureagent.api.agent")
 
 router = APIRouter(tags=["agent"])
 
@@ -16,9 +29,26 @@ class AgentRunRequest(BaseModel):
     message: str = Field(min_length=1)
 
 
-@router.post("/run", response_model=AgentExecutionResult)
-async def run_agent(payload: AgentRunRequest, request: Request) -> AgentExecutionResult:
-    """Interpret a message, run the task, and return the full agent result."""
+class AgentRunAccepted(BaseModel):
+    """Immediate response for a background agent run."""
+
+    task_id: str
+    status: str = "PENDING"
+    interpreted: ProcurementRequest
+    poll_url: str
+
+
+@router.post("/run")
+async def run_agent(
+    payload: AgentRunRequest,
+    request: Request,
+    wait: bool = Query(
+        default=True,
+        description="Run synchronously and return the full result (default). "
+        "Pass wait=false to start a background task and poll /tasks/{id}.",
+    ),
+) -> AgentRunAccepted | AgentExecutionResult:
+    """Interpret a message and start (or synchronously run) a procurement task."""
 
     repository = request.app.state.repository
     orchestrator = request.app.state.orchestrator
@@ -26,13 +56,21 @@ async def run_agent(payload: AgentRunRequest, request: Request) -> AgentExecutio
 
     try:
         procurement_request = await interpreter.interpret(payload.message)
-    except Exception as exc:  # noqa: BLE001 - surfaced as a clear API error
+    except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     task_id = uuid4().hex
     repository.create(task_id, procurement_request)
-    state = await orchestrator.run(task_id, procurement_request)
 
+    if not wait:
+        request.app.state.background.submit(task_id, procurement_request)
+        return AgentRunAccepted(
+            task_id=task_id,
+            interpreted=procurement_request,
+            poll_url=f"/api/v1/tasks/{task_id}",
+        )
+
+    state = await orchestrator.run(task_id, procurement_request)
     plan = repository.get_plan(task_id) or ProcurementPlan()
     recommendation = repository.get_recommendation(task_id)
     quotes = recommendation.quotes if recommendation else []
