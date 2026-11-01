@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProcureAgent Workbench · 企业采购智能代理</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e9f8d'/%3E%3Cpath d='M8 11h13l-1.6 8.5H10.5L9 7H6' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='11.5' cy='24' r='1.8' fill='white'/%3E%3Ccircle cx='19' cy='24' r='1.8' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<div id="app">
+  <aside class="sidebar">
+    <a class="brand" href="#/">
+      <span class="brand-mark">P</span>
+      <span class="brand-text">
+        <strong>ProcureAgent</strong>
+        <small>Workbench · v2.0</small>
+      </span>
+    </a>
+    <nav id="nav" class="nav">
+      <a href="#/" data-route="#/">总览<span class="nav-en">Overview</span></a>
+      <a href="#/run" data-route="#/run">新建采购<span class="nav-en">New Task</span></a>
+      <a href="#/tasks" data-route="#/tasks">任务记录<span class="nav-en">Tasks</span></a>
+      <a href="#/suppliers" data-route="#/suppliers">供应商<span class="nav-en">Suppliers</span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <p class="foot-note">LLM 负责不确定性 ·<br>确定性代码负责确定性</p>
+      <p class="foot-note dim">API 优先 · 门户自适应兜底<br>每一步可恢复、可审计</p>
+    </div>
+  </aside>
+  <main class="main"><div id="page" class="page"></div></main>
+</div>
+<div id="toast" class="toast hidden"></div>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

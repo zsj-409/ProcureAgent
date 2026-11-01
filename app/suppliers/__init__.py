@@ -1,0 +1,1 @@
+"""Supplier catalog and configuration."""
