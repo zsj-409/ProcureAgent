@@ -140,7 +140,15 @@ class DurableWorker:
             await self._execute_claimed(task_id, step_key, logical_id, claim)
 
     async def _execute_claimed(self, task_id: str, step_key: str, logical_id: int, claim) -> None:
-        """Run one claimed step under heartbeat; submit fenced results."""
+        """Run one claimed step under heartbeat; submit fenced results.
+
+        Phase 3: the terminal outcome depends on the tool's external
+        capability:
+        - READ_ONLY / REMOTE_IDEMPOTENT (retry_safe): complete on success,
+          fail→RETRY on transient errors.
+        - NON_IDEMPOTENT / UNKNOWN: on ANY error after dispatch, mark
+          UNKNOWN_OUTCOME — never blind-retry a possibly-committed mutation.
+        """
 
         attempt_id = self._claim.start_attempt(
             logical_step_id=logical_id,
@@ -156,6 +164,26 @@ class DurableWorker:
                 claim=claim,
                 worker_id=self._worker_id,
             )
+            if result.get("outcome_known", True) is False:
+                # External outcome uncertain (e.g. timeout after dispatch):
+                # capability decides whether re-execution is safe.
+                if self._capability_retry_safe(step_key):
+                    self._claim.fail(
+                        logical_step_id=logical_id,
+                        worker_id=self._worker_id,
+                        lease_epoch=claim.lease_epoch,
+                        error_code="OUTCOME_UNKNOWN_RETRYABLE",
+                        attempt_id=attempt_id,
+                    )
+                else:
+                    self._claim.mark_unknown(
+                        logical_step_id=logical_id,
+                        worker_id=self._worker_id,
+                        lease_epoch=claim.lease_epoch,
+                        reason="external outcome uncertain; capability not retry-safe",
+                        attempt_id=attempt_id,
+                    )
+                return
             self._claim.complete(
                 logical_step_id=logical_id,
                 worker_id=self._worker_id,
@@ -165,14 +193,48 @@ class DurableWorker:
             )
         except Exception as exc:
             logger.warning("worker %s step %s failed: %s", self._worker_id, step_key, exc)
-            self._claim.fail(
-                logical_step_id=logical_id,
-                worker_id=self._worker_id,
-                lease_epoch=claim.lease_epoch,
-                error_code=type(exc).__name__,
-            )
+            if self._capability_retry_safe(step_key):
+                self._claim.fail(
+                    logical_step_id=logical_id,
+                    worker_id=self._worker_id,
+                    lease_epoch=claim.lease_epoch,
+                    error_code=type(exc).__name__,
+                    attempt_id=attempt_id,
+                )
+            else:
+                # A mutation tool failed after dispatch: outcome unknown and
+                # possibly committed -> UNKNOWN_OUTCOME, never blind retry.
+                self._claim.mark_unknown(
+                    logical_step_id=logical_id,
+                    worker_id=self._worker_id,
+                    lease_epoch=claim.lease_epoch,
+                    reason=f"{type(exc).__name__}: {exc}",
+                    attempt_id=attempt_id,
+                )
         finally:
             heartbeat_task.cancel()
+
+    def _capability_retry_safe(self, step_key: str) -> bool:
+        """Whether re-executing this step can never duplicate a business effect.
+
+        Looks up the executor capability for the step's supplier. Unknown
+        capability defaults to NOT retry-safe (conservative).
+        """
+
+        try:
+            if not step_key.startswith("collect_"):
+                return True  # non-external steps (score/policy) are safe
+            supplier_id = step_key[len("collect_"):]
+            supplier = next(
+                (s for s in self._orchestrator.router.suppliers() if s.supplier_id == supplier_id),
+                None,
+            )
+            if supplier is None:
+                return False
+            executor = self._orchestrator.router.route(supplier)
+            return bool(getattr(executor, "retry_policy", None) and executor.retry_policy.retry_safe)
+        except Exception:
+            return False
 
     async def _heartbeat_loop(self, logical_id: int, lease_epoch: int) -> None:
         """Renew the lease until the work finishes (or the lease is lost)."""

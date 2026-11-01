@@ -3,11 +3,18 @@
 import httpx
 
 from ..errors import SupplierUnavailableError
-from .base import BaseExecutor, ExecutorResult, ExecutorTask
+from .base import BaseExecutor, ExecutorResult, ExecutorTask, ExternalCapability, RetryPolicy
 
 
 class ApiExecutor(BaseExecutor):
-    """Query a supplier REST API and return a raw quote mapping."""
+    """Query a supplier REST API and return a raw quote mapping.
+
+    Phase 3 capability: READ_ONLY_RETRYABLE — a quote GET has no external
+    side effect; retry is safe and counts as a duplicate query.
+    """
+
+    capability = ExternalCapability.READ_ONLY_RETRYABLE
+    retry_policy = RetryPolicy(max_retries=2, retry_safe=True)
 
     def __init__(
         self,

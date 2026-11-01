@@ -148,15 +148,25 @@ class ProcurementOrchestrator:
                     supplier=supplier,
                     product_name=request.product_name,
                     quantity=request.quantity,
+                    external_idempotency_key=f"procure:{task_id}:{step_key}",
                 )
             )
             if not result.success or not result.quote:
                 from ..errors import SupplierUnavailableError
 
                 raise SupplierUnavailableError(result.error or "No quote returned")
-            return result.quote
+            # Phase 3: propagate the external outcome metadata so the worker
+            # can decide retry vs UNKNOWN_OUTCOME by capability.
+            outcome_known = result.outcome_known if result.outcome_known is not None else True
+            return {
+                "quote": result.quote,
+                "external_request_id": result.external_request_id,
+                "outcome_known": outcome_known,
+                "committed": result.committed,
+            }
 
-        raw_quote = await collect()
+        collected = await collect()
+        raw_quote = collected["quote"]
         # Normalize (quote freshness / comparability is enforced upstream).
         quote = self.normalizer.normalize(
             raw_quote,
@@ -168,7 +178,14 @@ class ProcurementOrchestrator:
         result_ref = f"quote:{supplier_id}:{quote.collected_at.isoformat()}"
         # Persist the normalized quote under the step's result ref (audit).
         self.repository.save_step_result(task_id, step_key, quote)
-        return {"result_ref": result_ref, "status": "ok", "supplier_id": supplier_id}
+        return {
+            "result_ref": result_ref,
+            "status": "ok",
+            "supplier_id": supplier_id,
+            "outcome_known": collected["outcome_known"],
+            "external_request_id": collected["external_request_id"],
+            "committed": collected["committed"],
+        }
 
     def _validate_plan_for_execution(
         self, plan: ProcurementPlan, suppliers: list[SupplierProfile]

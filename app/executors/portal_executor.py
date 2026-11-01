@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 from ..errors import SupplierUnavailableError, WebExecutionError
 from ..infrastructure.settings import Settings
 from ..observability.trace import TraceRecorder
-from .base import BaseExecutor, ExecutorResult, ExecutorTask
+from .base import BaseExecutor, ExecutorResult, ExecutorTask, ExternalCapability, RetryPolicy
 from .portal_agent import (
     HeuristicPortalAgent,
     LLMPortalAgent,
@@ -158,7 +158,14 @@ class PortalSession:
 
 
 class PortalExecutor(BaseExecutor):
-    """Collect one raw quote mapping from a legacy supplier portal."""
+    """Collect one raw quote mapping from a legacy supplier portal.
+
+    Phase 3 capability: READ_ONLY_RETRYABLE — portal quote extraction is a
+    read; retry is safe and counts as a duplicate query.
+    """
+
+    capability = ExternalCapability.READ_ONLY_RETRYABLE
+    retry_policy = RetryPolicy(max_retries=2, retry_safe=True)
 
     def __init__(
         self,
