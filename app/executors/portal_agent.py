@@ -45,10 +45,10 @@ PRICE_SUFFIX_RE = re.compile(r"([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:[$¥€£]|(?:US
 STOCK_RE = re.compile(r"(?:库存|in stock|stock|available|available units)[^0-9]{0,6}([0-9]+)", re.IGNORECASE)
 DELIVERY_RE = re.compile(r"([0-9]+)\s*(?:天|日|days?)", re.IGNORECASE)
 HEADER_HINTS = {
-    "name": ("name", "product", "商品", "产品", "名称"),
-    "price": ("price", "单价", "价格", "amount"),
-    "stock": ("stock", "库存", "available", "数量"),
-    "delivery": ("delivery", "lead", "交期", "天数", "days"),
+    "name": ("name", "product", "商品", "产品", "名称", "item"),
+    "price": ("price", "单价", "价格", "amount", "金额", "cost"),
+    "stock": ("stock", "库存", "available", "数量", "availability", "quantity", "inventory"),
+    "delivery": ("delivery", "lead", "交期", "天数", "days", "delivery time"),
 }
 
 

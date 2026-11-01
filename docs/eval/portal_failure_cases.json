@@ -1,0 +1,22 @@
+{
+  "n": 1,
+  "cases": [
+    {
+      "method": "A_script_only",
+      "method_label": "Script Only",
+      "fault": "F2_LAYOUT_DRIFT",
+      "fault_seed": 3,
+      "verified_success": false,
+      "recovery_success": false,
+      "safe_containment": false,
+      "quote_match": false,
+      "browser_actions": 1,
+      "llm_calls": 0,
+      "tokens": 0,
+      "cost": 0.0,
+      "latency_ms": 3577,
+      "failure_type": "F2_LAYOUT_DRIFT",
+      "detail": "method failed"
+    }
+  ]
+}

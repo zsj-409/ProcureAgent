@@ -240,6 +240,37 @@ class PortalWorld:
                     results = results  # injection is on the page, not the data
                 rows = ""
                 if world.layout == "table":
+                    # OOD template: different header words, different URL shape
+                    # (e.g. /listing instead of /search), different id prefixes.
+                    if world.template_version == "t2_ood":
+                        head_row = (
+                            "<thead><tr><th>Item</th><th>Amount</th>"
+                            "<th>Availability</th><th>Lead Time</th></tr></thead>"
+                        )
+                        body_rows = ""
+                        for product in results:
+                            body_rows += (
+                                f'<tr id="ood-{product.sku}" data-pid="{product.sku}">'
+                                f'<td class="it">{product.name}</td>'
+                                f'<td class="am">{product.price} {product.currency}</td>'
+                                f'<td class="av">{product.stock}</td>'
+                                f'<td class="lt">{product.delivery_days} days</td>'
+                                f"</tr>"
+                            )
+                        table = (
+                            "<table>"
+                            f"{head_row}<tbody>{body_rows}</tbody></table>"
+                        )
+                        # OOD: no search form on results page (drift); the
+                        # page is clean (no injection/modal/ambiguous overlay).
+                        self._send(
+                            200,
+                            self._html(
+                                "<h1>Item Listing</h1>"
+                                f"{table}"
+                            ),
+                        )
+                        return
                     for product in results:
                         cls = world._fault_classes()
                         rows += (
@@ -349,7 +380,28 @@ def make_world(
 ) -> PortalWorld:
     """Convenience factory: default catalog + fault config."""
 
-    if products is None:
+    # OOD template variant: different header labels, different element ids,
+    # a different results URL shape — but the SAME semantic structure.
+    if template_version == "t2_ood":
+        products = products or [
+            {
+                "sku": "sku-001",
+                "name": "MX Master 3S",
+                "price": Decimal("99.99"),
+                "currency": "USD",
+                "stock": 50,
+                "delivery_days": 3,
+            },
+            {
+                "sku": "sku-002",
+                "name": "Ergonomic Keyboard K860",
+                "price": Decimal("129.00"),
+                "currency": "USD",
+                "stock": 20,
+                "delivery_days": 5,
+            },
+        ]
+    elif products is None:
         products = [
             {
                 "sku": "sku-001",

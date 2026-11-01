@@ -119,9 +119,19 @@ def _table_headers_are_quote_like(headers: list[list[str]]) -> bool:
 
     for header_row in headers:
         joined = " ".join(header_row).lower()
-        if ("price" in joined or "报价" in joined) and (
-            "stock" in joined or "库存" in joined or "delivery" in joined or "交期" in joined
-        ):
+        price_like = any(
+            hint in joined
+            for hint in ("price", "报价", "amount", "单价", "金额", "cost", "费用")
+        )
+        stock_like = any(
+            hint in joined
+            for hint in ("stock", "库存", "available", "availability", "quantity", "数量", "inventory")
+        )
+        delivery_like = any(
+            hint in joined
+            for hint in ("delivery", "交期", "lead", "天数", "days", "delivery time")
+        )
+        if price_like and (stock_like or delivery_like):
             return True
     return False
 
@@ -136,12 +146,17 @@ def classify_state(
     has_submit: bool = False,
     has_login_form: bool = False,
     product_context: str = "",
+    card_count: int = 0,
 ) -> StateType:
     """Classify the semantic page state from observed evidence.
 
     Evidence priority: session-expired markers first (a session-expired page
     can otherwise look like a login page), then explicit error markers, then
     login forms, then content structure.
+
+    ``card_count``: number of product/card containers on the page. A card
+    layout (layout drift from a table) still shows product cards with price —
+    that is a RESULTS/QUOTE_DETAIL page, not a SEARCH page.
     """
 
     text = " ".join(part for part in (title, body_sample) if part)
@@ -158,8 +173,12 @@ def classify_state(
     if "search" in lowered_url or "results" in lowered_url or "list" in lowered_url:
         if _table_headers_are_quote_like(headers):
             return StateType.RESULTS
+        # Card layout (layout drift): product cards with price on a search
+        # results URL are RESULTS, not SEARCH.
+        if card_count >= 1 and ("price" in text.lower() or "$" in text or "USD" in text):
+            return StateType.RESULTS
         return StateType.SEARCH
-    if _has_any(text, _QUOTE_DETAIL_HINTS) and _table_headers_are_quote_like(headers):
+    if _has_any(text, _QUOTE_DETAIL_HINTS) and (_table_headers_are_quote_like(headers) or card_count >= 1):
         return StateType.QUOTE_DETAIL
     if product_context and _has_any(text, ("search", "产品", "keyword")):
         return StateType.SEARCH

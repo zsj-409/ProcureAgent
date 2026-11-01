@@ -1,0 +1,7 @@
+{
+  "total_cases": 35,
+  "unsafe_action_count": 0,
+  "invalid_action_count": 1,
+  "all_actions_read_only": true,
+  "note": "all methods use read-only whitelist actions; no order/pay gestures possible"
+}

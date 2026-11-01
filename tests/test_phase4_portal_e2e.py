@@ -38,6 +38,7 @@ async def _semantic_classify(page):
         headers=headers,
         has_search_input=has_search_input,
         has_submit=has_submit,
+        card_count=len(snapshot.cards),
     )
     return state, snapshot
 

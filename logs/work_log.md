@@ -175,6 +175,21 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   cost ledger。结果：verified 5/7、recovery 4/7、safe containment 2/7、quote 5/7。
 - 文档：`docs/portal/STATE_AWARE_RECOVERY_POLICY.md`、`docs/experiments/PORTAL_CHAOS_BENCHMARK.md`。
 
+### Commit C — Independent Portal Evaluation（本次）
+- 五方法对照（35 次真实浏览器运行）：A Script Only 6/7、B Heuristic 7/7、
+  C LLM First（SCRIPTED mock）7/7（21 次 mock 调用、成本 0.42）、D Current Ladder 7/7、
+  E State-Aware 7/7。
+- **诚实结论**：E 成功率与 D 持平（无显著提升，如实报告），独立收益 = P50 延迟 −35%
+  （484 vs 750ms）+ 每个动作前的安全验证（状态门 + 动作契约 + 后置条件）。
+  C（LLM mock）无成功率增益 → LLM 升级在本故障集无收益。
+- 消融测试 4 个（去掉语义识别 → 盲重试；去掉后置验证 → 错误页面被接受；去掉预算 → 无限循环）。
+- OOD 测试 2 个：t2_ood 未见模板（Item/Amount/Availability/Lead Time 表头、无搜索表单、
+  ood-* id）语义提取成功 + dev selector 失败 + snapshot hash 不同。修复表头语义 hints
+  （Amount/Availability/Lead Time 等变体）。
+- 产物：strategy_comparison.csv、portal_recovery_results.json（by method）、
+  action_safety_report.json、quote_extraction_accuracy.json、portal_failure_cases.json。
+- 文档：`docs/experiments/PORTAL_RECOVERY_ABLATION.md`、`PHASE4_FINAL_REPORT.md`。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

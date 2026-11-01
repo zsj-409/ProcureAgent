@@ -1,0 +1,26 @@
+{
+  "n": 35,
+  "quote_match": 34,
+  "by_method": {
+    "A_script_only": {
+      "n": 7,
+      "quote_match": 6
+    },
+    "B_heuristic_only": {
+      "n": 7,
+      "quote_match": 7
+    },
+    "C_llm_first": {
+      "n": 7,
+      "quote_match": 7
+    },
+    "D_current_ladder": {
+      "n": 7,
+      "quote_match": 7
+    },
+    "E_state_aware": {
+      "n": 7,
+      "quote_match": 7
+    }
+  }
+}
