@@ -25,6 +25,7 @@ from .observability.trace import TraceRecorder
 from .procurement.normalizer import QuoteNormalizer
 from .procurement.policy import ProcurementPolicy
 from .procurement.scorer import ProcurementScorer
+from .security.approval_guard import ApprovalGuard
 from .suppliers.base import SupplierRegistry
 
 
@@ -93,6 +94,7 @@ def build_components(
     orchestrator_ready = orchestrator
     background.bind(orchestrator_ready)
     interpreter = ProcurementInterpreter(model)
+    approval_guard = ApprovalGuard(settings)
     return {
         "repository": repository,
         "trace": trace,
@@ -101,6 +103,7 @@ def build_components(
         "model": model,
         "registry": registry,
         "background": background,
+        "approval_guard": approval_guard,
     }
 
 

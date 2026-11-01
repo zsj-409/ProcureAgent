@@ -68,6 +68,17 @@ class Settings(BaseSettings):
     # Purchases at or above this total require human approval.
     approval_threshold: Decimal = Decimal(1000)
 
+    # --- Phase 1 approval security ---------------------------------------
+    # When True (default), approval/reject writes require an authenticated
+    # caller. There is no real identity layer yet, so with auth_enabled=True
+    # every approval write is DENIED (default deny). To run the offline demo,
+    # set auth_enabled=False AND demo_identity_header to an explicitly chosen
+    # header name; the demo identity is then resolved from that header only
+    # (allowlist, never trusted from the request body). A bare env flag can
+    # never enable anonymous approval.
+    auth_enabled: bool = True
+    demo_identity_header: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

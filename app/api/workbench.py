@@ -9,8 +9,15 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from ..agent.state import TaskStatus
+from ..security.approval_guard import ApprovalGuard
+from ..security.principal import Role
 
 router = APIRouter(tags=["workbench"])
+
+
+def _approval_guard(request: Request) -> ApprovalGuard:
+    guard = getattr(request.app.state, "approval_guard", None)
+    return guard if guard is not None else ApprovalGuard()
 
 
 @router.get("/tasks")
@@ -56,7 +63,19 @@ async def list_tasks(
 
 @router.post("/tasks/{task_id}/reject")
 async def reject_task(task_id: str, request: Request) -> dict:
-    """Reject a task that is waiting for human approval."""
+    """Reject a task that is waiting for human approval.
+
+    Phase 1: guarded exactly like approve — default deny for unauthenticated
+    callers; identity never trusted from the request body.
+    """
+
+    guard = _approval_guard(request)
+    decision = guard.check(request, required_role=Role.APPROVER)
+    if not decision.allowed:
+        raise HTTPException(
+            status_code=decision.http_status,
+            detail={"reason_code": decision.reason_code or "DENIED", "detail": f"Rejection denied for task {task_id}"},
+        )
 
     repository = request.app.state.repository
     record = repository.get(task_id)
@@ -67,7 +86,14 @@ async def reject_task(task_id: str, request: Request) -> dict:
             status_code=409,
             detail=f"Task cannot be rejected from status {record.status}",
         )
-    repository.create_approval(task_id, approver="human", decision="rejected")
+    approver_id = decision.principal.id if decision.principal else "unknown"
+    repository.create_approval(
+        task_id,
+        approver=approver_id,
+        decision="rejected",
+        recommendation_version=None,
+        reason_code=None,
+    )
     now = datetime.now(UTC)
     record.status = TaskStatus.REJECTED.value
     record.updated_at = now
@@ -76,6 +102,7 @@ async def reject_task(task_id: str, request: Request) -> dict:
         "task_id": task_id,
         "status": TaskStatus.REJECTED.value,
         "rejected_at": now.isoformat(),
+        "reason_code": "OK",
     }
 
 
@@ -90,6 +117,8 @@ async def list_approvals(task_id: str, request: Request) -> list[dict]:
         {
             "approver": row.approver,
             "decision": row.decision,
+            "recommendation_version": row.recommendation_version,
+            "reason_code": row.reason_code,
             "created_at": row.created_at.isoformat(),
         }
         for row in repository.list_approvals(task_id)

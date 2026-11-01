@@ -1,4 +1,26 @@
-"""Plan validation and execution feedback."""
+"""Plan validation and execution feedback.
+
+Phase 1 rewrite of ``PlanValidator``:
+
+- Validates a plan as a **dependency-ordered sequence**, not just a set of
+  actions:
+  - every action must be in the allowed set;
+  - COLLECT_SUPPLIER steps must come before any scoring/decision step;
+  - NORMALIZE must appear before SCORE when quotes are collected;
+  - SCORE must appear before CHECK_POLICY;
+  - CHECK_POLICY must appear before FINALIZE;
+  - FINALIZE, when present, must be the last step;
+  - no duplicate COLLECT_SUPPLIER for the same supplier;
+  - no dependency cycle (strict total order makes cycles structurally
+    impossible).
+- Supports **legitimate conditional terminal paths**:
+  - a plan may end at CHECK_POLICY when the business outcome is a human
+    review (shortfall / budget exception -> WAITING_APPROVAL) — FINALIZE is
+    NOT forced on a review path;
+  - a plan that ends at FINALIZE is a normal auto-completed path.
+"""
+
+from __future__ import annotations
 
 from enum import Enum
 
@@ -16,7 +38,20 @@ from .prompts import REVIEW_SYSTEM
 
 
 class PlanValidator:
-    """Validate LLM plans before they can influence execution."""
+    """Validate LLM plans before they can influence execution.
+
+    The valid skeleton is:
+
+        (COLLECT_SUPPLIER* → NORMALIZE* → SCORE → CHECK_POLICY [→ FINALIZE])?
+
+    with these hard rules:
+    - at least one COLLECT_SUPPLIER (an empty plan is invalid);
+    - NORMALIZE before SCORE (only when any quote source exists);
+    - SCORE before CHECK_POLICY;
+    - FINALIZE, when present, is the last step and only after CHECK_POLICY;
+    - no duplicate supplier collection;
+    - no action outside the allowed set.
+    """
 
     def __init__(self, max_steps: int = 20):
         self.max_steps = max_steps
@@ -36,15 +71,15 @@ class PlanValidator:
             return f"Plan exceeds max_steps={self.max_steps}"
 
         actions = [step.action for step in plan.steps]
-        if PlanAction.SCORE not in actions:
-            return "Plan must include SCORE"
-        if PlanAction.CHECK_POLICY not in actions:
-            return "Plan must include CHECK_POLICY"
 
-        seen_suppliers: set[str] = set()
+        # 1) All actions must be legal.
         for step in plan.steps:
             if step.action.value not in allowed:
                 return f"Illegal action: {step.action.value}"
+
+        # 2) No duplicate supplier collection, well-formed supplier ids.
+        seen_suppliers: set[str] = set()
+        for step in plan.steps:
             if step.action == PlanAction.COLLECT_SUPPLIER:
                 if not step.supplier_id:
                     return "COLLECT_SUPPLIER requires supplier_id"
@@ -53,6 +88,53 @@ class PlanValidator:
                 if step.supplier_id in seen_suppliers:
                     return f"Duplicate supplier: {step.supplier_id}"
                 seen_suppliers.add(step.supplier_id)
+
+        # 3) Dependency ordering (the core Phase-1 fix).
+        has_collect = PlanAction.COLLECT_SUPPLIER in actions
+        has_normalize = PlanAction.NORMALIZE in actions
+        has_score = PlanAction.SCORE in actions
+        has_policy = PlanAction.CHECK_POLICY in actions
+        has_finalize = PlanAction.FINALIZE in actions
+
+        if not has_collect:
+            return "Plan must include at least one COLLECT_SUPPLIER"
+        if not has_score:
+            return "Plan must include SCORE"
+        if not has_policy:
+            return "Plan must include CHECK_POLICY"
+
+        # Quotes must be sourced before scoring.
+        score_pos = actions.index(PlanAction.SCORE)
+        last_collect_pos = max(
+            i for i, step in enumerate(plan.steps) if step.action == PlanAction.COLLECT_SUPPLIER
+        )
+        if score_pos < last_collect_pos:
+            return "SCORE must come after all COLLECT_SUPPLIER steps"
+
+        if has_normalize:
+            normalize_pos = actions.index(PlanAction.NORMALIZE)
+            if normalize_pos > score_pos:
+                return "NORMALIZE must come before SCORE"
+        else:
+            return "Plan must include NORMALIZE before SCORE"
+
+        # Policy check after scoring.
+        policy_pos = actions.index(PlanAction.CHECK_POLICY)
+        if policy_pos < score_pos:
+            return "CHECK_POLICY must come after SCORE"
+
+        # FINALIZE, when present, must be the last step and after CHECK_POLICY.
+        if has_finalize:
+            finalize_pos = actions.index(PlanAction.FINALIZE)
+            if finalize_pos != len(plan.steps) - 1:
+                return "FINALIZE must be the last step of the plan"
+            if finalize_pos < policy_pos:
+                return "FINALIZE must come after CHECK_POLICY"
+        # A plan may legitimately end at CHECK_POLICY (human review path:
+        # shortfall / budget exception -> WAITING_APPROVAL). FINALIZE is
+        # therefore NOT required for validity; the orchestrator decides the
+        # actual terminal state from the policy result.
+
         return None
 
 

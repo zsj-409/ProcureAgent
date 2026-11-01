@@ -27,7 +27,7 @@ from .planner import Planner
 from .prompts import FINALIZER_SYSTEM
 from .runtime import TaskRuntime
 from .state import TaskState, TaskStatus
-from .validator import ExecutionValidator, ValidationDecision
+from .validator import ExecutionValidator, PlanValidator, ValidationDecision
 
 
 class RecommendationFinalizer:
@@ -90,6 +90,7 @@ class ProcurementOrchestrator:
         context_builder: ContextBuilder,
         finalizer: RecommendationFinalizer,
         settings: Settings | None = None,
+        plan_validator: PlanValidator | None = None,
     ):
         self._settings = settings
         self.planner = planner
@@ -103,6 +104,22 @@ class ProcurementOrchestrator:
         self.validator = validator
         self.context_builder = context_builder
         self.finalizer = finalizer
+        # Phase 1: runtime plan gate. Uses a default PlanValidator when the
+        # caller did not inject one (e.g. tests constructing orchestrators
+        # directly).
+        self.plan_validator = plan_validator or PlanValidator(
+            max_steps=self.runtime.budget.max_steps
+        )
+
+    def _validate_plan_for_execution(
+        self, plan: ProcurementPlan, suppliers: list[SupplierProfile]
+    ) -> str | None:
+        """Runtime gate: an unvalidated plan must never reach the executor.
+
+        Returns an error string when the plan is invalid, else ``None``.
+        """
+
+        return self.plan_validator.validate(plan, suppliers)
 
     async def run(self, task_id: str, request: ProcurementRequest) -> TaskState:
         """Run a new procurement task."""
@@ -120,6 +137,16 @@ class ProcurementOrchestrator:
         self._save(state)
         suppliers = self.router.suppliers()
         plan = await self.planner.plan(request, suppliers, "")
+        # Phase 1 runtime enforcement: an unvalidated plan must never reach the
+        # executor. The planner already validates internally, but the runtime
+        # enforces it again at the execution boundary (defense in depth).
+        validation_error = self._validate_plan_for_execution(plan, suppliers)
+        if validation_error:
+            return self._fail(
+                state,
+                {},
+                f"Plan rejected before execution: {validation_error}",
+            )
         self.repository.save_plan(task_id, plan)
 
         state.status = TaskStatus.COLLECTING
@@ -141,7 +168,19 @@ class ProcurementOrchestrator:
         suppliers = self.router.suppliers()
         if plan is None:
             plan = await self.planner.plan(request, suppliers, "")
+            validation_error = self._validate_plan_for_execution(plan, suppliers)
+            if validation_error:
+                raise ValueError(f"Plan rejected before execution: {validation_error}")
             self.repository.save_plan(task_id, plan)
+        else:
+            # A persisted plan (possibly from an older schema version) must
+            # also pass the current validator before it is executed again.
+            validation_error = self._validate_plan_for_execution(plan, suppliers)
+            if validation_error:
+                state.status = TaskStatus.FAILED
+                state.error = f"Persisted plan rejected on resume: {validation_error}"
+                self._save(state)
+                return state
 
         state.status = TaskStatus.COLLECTING
         state.error = None

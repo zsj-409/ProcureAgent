@@ -116,8 +116,13 @@ def client(tmp_path, supplier_api_url, supplier_portal_url):
         approval_threshold=Decimal(150),
         portal_frames_dir=str(tmp_path / "frames"),
         collect_concurrency=2,
+        auth_enabled=False,
+        demo_identity_header="X-Demo-Actor",
     )
     return TestClient(create_app(settings))
+
+
+DEMO_HEADERS = {"X-Demo-Actor": "demo-approver"}
 
 
 def test_agent_run_background_flow(client):
@@ -167,11 +172,11 @@ def test_reject_flow(client):
     assert created["status"] == "WAITING_APPROVAL"
     task_id = created["task_id"]
 
-    rejected = client.post(f"/api/v1/tasks/{task_id}/reject")
+    rejected = client.post(f"/api/v1/tasks/{task_id}/reject", headers=DEMO_HEADERS)
     assert rejected.status_code == 200
     assert rejected.json()["status"] == "REJECTED"
 
-    again = client.post(f"/api/v1/tasks/{task_id}/reject")
+    again = client.post(f"/api/v1/tasks/{task_id}/reject", headers=DEMO_HEADERS)
     assert again.status_code == 409
 
     history = client.get(f"/api/v1/tasks/{task_id}/approvals").json()

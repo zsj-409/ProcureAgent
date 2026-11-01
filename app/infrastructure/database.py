@@ -39,7 +39,12 @@ class TaskRecord(Base):
 
 
 class ApprovalRecord(Base):
-    """A human approval decision attached to a task."""
+    """A human approval decision attached to a task.
+
+    ``recommendation_version`` binds the decision to the immutable
+    recommendation that was presented to the approver (Phase 1). ``reason_code``
+    records the outcome class of denied attempts (Phase 1 security audit).
+    """
 
     __tablename__ = "approvals"
 
@@ -47,6 +52,8 @@ class ApprovalRecord(Base):
     task_id: Mapped[str] = mapped_column(String(64), index=True)
     approver: Mapped[str] = mapped_column(String(64), default="human")
     decision: Mapped[str] = mapped_column(String(16), default="approved")
+    recommendation_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reason_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -250,8 +257,19 @@ class TaskRepository:
             return None
         return ProcurementRecommendation.model_validate_json(record.recommendation_json)
 
-    def create_approval(self, task_id: str, approver: str = "human", decision: str = "approved") -> None:
-        """Persist a human approval record."""
+    def create_approval(
+        self,
+        task_id: str,
+        approver: str = "human",
+        decision: str = "approved",
+        recommendation_version: str | None = None,
+        reason_code: str | None = None,
+    ) -> None:
+        """Persist a human approval record.
+
+        ``recommendation_version`` binds the decision to the immutable
+        recommendation snapshot; ``reason_code`` records denied attempts.
+        """
 
         with self._session_factory() as session:
             session.add(
@@ -259,6 +277,8 @@ class TaskRepository:
                     task_id=task_id,
                     approver=approver,
                     decision=decision,
+                    recommendation_version=recommendation_version,
+                    reason_code=reason_code,
                     created_at=_utcnow(),
                 )
             )

@@ -99,6 +99,8 @@ def _make_client(
     supplier_portal_url: str,
     *,
     web_allow_launch: bool = True,
+    auth_enabled: bool = False,
+    demo_header: str = "X-Demo-Actor",
 ) -> TestClient:
     config_path = _write_config(tmp_path, supplier_api_url, supplier_portal_url)
     settings = Settings(
@@ -114,6 +116,8 @@ def _make_client(
         agent_max_task_seconds=60,
         agent_max_replans=1,
         approval_threshold=Decimal(1000),
+        auth_enabled=auth_enabled,
+        demo_identity_header=demo_header,
     )
     return TestClient(create_app(settings))
 
@@ -141,7 +145,10 @@ def test_full_task_flow_reaches_waiting_approval_and_completes(
             "mock_api_supplier_alt",
         }
 
-        approval = client.post(f"/api/v1/tasks/{task_id}/approve")
+        approval = client.post(
+            f"/api/v1/tasks/{task_id}/approve",
+            headers={"X-Demo-Actor": "demo-approver"},
+        )
         assert approval.status_code == 200, approval.text
         assert approval.json()["status"] == "COMPLETED"
 

@@ -111,5 +111,7 @@ class ApprovalRecordView(BaseModel):
 
     task_id: str
     approver: str
-    decision: Literal["approved"]
+    decision: Literal["approved", "rejected"]
+    recommendation_version: str | None = None
+    reason_code: str | None = None
     created_at: datetime
