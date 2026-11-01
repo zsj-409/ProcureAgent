@@ -58,6 +58,20 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
 - **审批完整性**（Commit C）：CAS 并发单赢家、报价过期门禁、版本绑定。
 - 崩溃窗口三类动作精确分类：只读 (inv 2/comm 0)、幂等 (inv 2/comm 1)、非幂等 (不重试→UNKNOWN)。0 重复业务副作用。Phase 3 Gate 15/15。
 
+## Phase 4 完成（2026-11-01，187 passed）
+
+- **Commit A `083a2fa`**：审批 CAS 原子性 P0 修复、claim task/plan 绑定、Semantic Portal
+  State Graph（语义状态识别 + 稳定签名 + 转换日志）、Safe Browser Action Contract、
+  每任务独立 BrowserContext（不再复用 contexts[0]）。
+- **Commit B `b447494`**：State-Aware Recovery Controller（故障分类 + 有界恢复 +
+  SAFE_STOP）、真实本地 HTTP Portal（8 类故障注入 + 独立 Ground Truth）、
+  7 个真实浏览器 e2e 测试、PRICE_RE 货币后缀 bug 修复、机器可读 chaos 产物。
+- **Commit C**：五方法对照（A Script 6/7、B Heuristic 7/7、C LLM-mock 7/7、
+  D Current Ladder 7/7、E State-Aware 7/7）、消融 4 测试、OOD 模板 2 测试。
+- **诚实负结果**：E 成功率与 D 持平（7/7），独立收益是 P50 延迟 −35%（484 vs 750ms）
+  与安全验证；C（LLM mock）21 次调用无成功率增益。真实 LLM REAL_LLM_NOT_RUN。
+- Phase 4 Gate 18/18 通过。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行
