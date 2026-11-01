@@ -139,6 +139,11 @@ class DurableWorker:
                 continue
             await self._execute_claimed(task_id, step_key, logical_id, claim)
 
+        # Phase 3: after all steps are processed, drive the task to its
+        # correct terminal state from persisted results (idempotent — a task
+        # already terminal returns as-is; no double finalize).
+        await self._orchestrator.reconcile_task_state(task_id)
+
     async def _execute_claimed(self, task_id: str, step_key: str, logical_id: int, claim) -> None:
         """Run one claimed step under heartbeat; submit fenced results.
 

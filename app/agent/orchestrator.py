@@ -187,6 +187,98 @@ class ProcurementOrchestrator:
             "committed": collected["committed"],
         }
 
+    async def reconcile_task_state(self, task_id: str) -> TaskState:
+        """Phase 3: drive a task to its correct terminal state from PERSISTED
+        logical-step results (durable worker entry point for full-task
+        recovery).
+
+        - Re-validates the persisted plan (Phase 1 gate) before anything.
+        - Reads back SUCCEEDED collect-step results (no re-contact).
+        - Runs validation → scoring → policy → finalization deterministically.
+        - Marks the task COMPLETED / WAITING_APPROVAL / FAILED accordingly.
+        - Never double-finalizes: if the task is already COMPLETED /
+          WAITING_APPROVAL / REJECTED / FAILED, returns as-is.
+        """
+
+        record = self.repository.get(task_id)
+        if record is None:
+            raise ValueError(f"Task {task_id} does not exist")
+        if record.status in {
+            TaskStatus.COMPLETED.value,
+            TaskStatus.WAITING_APPROVAL.value,
+            TaskStatus.REJECTED.value,
+            TaskStatus.FAILED.value,
+        }:
+            return self.repository.to_state(record)
+
+        request = self.repository.get_request(task_id)
+        plan = self.repository.get_plan(task_id)
+        if request is None or plan is None:
+            raise ValueError(f"Task {task_id} has no request/plan")
+
+        suppliers = self.router.suppliers()
+        validation_error = self._validate_plan_for_execution(plan, suppliers)
+        if validation_error:
+            state = self.repository.to_state(record)
+            state.status = TaskStatus.FAILED
+            state.error = f"Persisted plan rejected on recovery: {validation_error}"
+            self._save(state)
+            return state
+
+        # Rebuild quotes from SUCCEEDED logical steps (checkpoint reuse).
+        quotes: list[SupplierQuote] = []
+        failures: dict[str, str] = {}
+        for step in plan.steps:
+            if step.action != PlanAction.COLLECT_SUPPLIER or not step.supplier_id:
+                continue
+            step_key = f"collect_{step.supplier_id}"
+            cached = self.repository.get_completed_step_result(task_id, step_key, step.supplier_id)
+            if cached is not None:
+                try:
+                    quote = SupplierQuote.model_validate(cached)
+                    quotes.append(quote)
+                except Exception:
+                    pass
+            else:
+                failures[step.supplier_id] = "no completed step result on recovery"
+
+        # Deterministic continuation: validate → score → policy → finalize.
+        state = self.repository.to_state(record)
+        decision = await self._validate(task_id, request, plan, state, quotes, failures)
+        if decision.decision == ValidationDecision.FAIL or not quotes:
+            return self._fail(state, failures, "No usable supplier quotes on recovery")
+
+        state.status = TaskStatus.SCORING
+        state.current_step = "score"
+        self._save(state)
+        recommendation = self.scorer.score(quotes, request.quantity, request.preference)
+        recommendation.partial_result = bool(failures)
+
+        state.current_step = "check_policy"
+        self._save(state)
+        policy_decision = self.policy.evaluate(
+            recommendation.estimated_total,
+            request.max_budget,
+            shortfall=recommendation.shortfall,
+            user_budget_limit=request.user_budget_limit,
+            budget_currency=request.budget_currency,
+            budget_mode=request.budget_mode.value,
+            estimated_total_currency="USD",
+            budget_policy_version=request.budget_policy_version,
+        )
+        recommendation.approval_required = policy_decision.requires_approval
+        recommendation.summary = await self.finalizer.generate(recommendation, request, task_id)
+        self.repository.save_recommendation(task_id, recommendation)
+
+        state.partial_result = recommendation.partial_result
+        if policy_decision.status == TaskStatus.APPROVED:
+            state.status = TaskStatus.COMPLETED
+        else:
+            state.status = TaskStatus.WAITING_APPROVAL
+        state.current_step = "finalize"
+        self._save(state)
+        return state
+
     def _validate_plan_for_execution(
         self, plan: ProcurementPlan, suppliers: list[SupplierProfile]
     ) -> str | None:
