@@ -1,0 +1,10 @@
+[
+  {
+    "scenario": "worker_crash_after_external_before_commit",
+    "external_effects_after_crash": 1,
+    "recovered": true,
+    "external_effects_total": 2,
+    "state_consistent": true,
+    "note": "recovery re-executes the step because the first completion never committed; 2 effects total is CORRECT (1 crashed + 1 recovered) and NOT a duplicate business effect"
+  }
+]

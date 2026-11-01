@@ -1,0 +1,18 @@
+{
+  "phase": "phase2",
+  "date": "2026-11-01T09:43:12.661573+00:00",
+  "environment": "Windows 11 / Python 3.11.9 / SQLite WAL / file DB (no :memory:)",
+  "fault_seed_registry": [
+    "seed-conc-2",
+    "seed-conc-4",
+    "seed-conc-8",
+    "seed-crash-conc"
+  ],
+  "methods": [
+    "single_worker",
+    "2_workers",
+    "4_workers",
+    "8_workers"
+  ],
+  "independence": "each scenario uses a fresh file DB + fresh external ledger; no method reads another method's DB state"
+}

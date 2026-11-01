@@ -1,0 +1,30 @@
+{
+  "phase": "phase2",
+  "experiments": [
+    {
+      "scenario": "concurrent_claim_2",
+      "workers": 2,
+      "external_queries": 1,
+      "db_writes": 6
+    },
+    {
+      "scenario": "concurrent_claim_4",
+      "workers": 4,
+      "external_queries": 1,
+      "db_writes": 6
+    },
+    {
+      "scenario": "concurrent_claim_8",
+      "workers": 8,
+      "external_queries": 1,
+      "db_writes": 6
+    },
+    {
+      "scenario": "crash_recovery",
+      "workers": 2,
+      "external_queries": 2,
+      "db_writes": 8
+    }
+  ],
+  "note": "external_queries = recorded external invocations (ledger); db_writes = task/step/attempt/audit rows. Read-only quote queries are counted separately from business mutations."
+}

@@ -1,0 +1,37 @@
+[
+  {
+    "task": "task-conc-1",
+    "consistent": true,
+    "errors": [],
+    "n_steps": 1,
+    "n_attempts": 0
+  },
+  {
+    "task": "task-conc-2",
+    "consistent": true,
+    "errors": [],
+    "n_steps": 1,
+    "n_attempts": 0
+  },
+  {
+    "task": "task-conc-4",
+    "consistent": true,
+    "errors": [],
+    "n_steps": 1,
+    "n_attempts": 0
+  },
+  {
+    "task": "task-conc-8",
+    "consistent": true,
+    "errors": [],
+    "n_steps": 1,
+    "n_attempts": 0
+  },
+  {
+    "task": "task-crash-manifest",
+    "consistent": true,
+    "errors": [],
+    "n_steps": 1,
+    "n_attempts": 0
+  }
+]

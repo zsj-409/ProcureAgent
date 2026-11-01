@@ -1,0 +1,34 @@
+[
+  {
+    "n_workers": 1,
+    "winners": 1,
+    "expected_winners": 1,
+    "single_winner": true,
+    "external_effects": 1,
+    "state_consistent": true
+  },
+  {
+    "n_workers": 2,
+    "winners": 1,
+    "expected_winners": 1,
+    "single_winner": true,
+    "external_effects": 1,
+    "state_consistent": true
+  },
+  {
+    "n_workers": 4,
+    "winners": 1,
+    "expected_winners": 1,
+    "single_winner": true,
+    "external_effects": 1,
+    "state_consistent": true
+  },
+  {
+    "n_workers": 8,
+    "winners": 1,
+    "expected_winners": 1,
+    "single_winner": true,
+    "external_effects": 1,
+    "state_consistent": true
+  }
+]

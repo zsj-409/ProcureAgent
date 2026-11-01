@@ -44,6 +44,13 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
 - **Eval 勘误**（Commit B）：Recovery n=1 口径、low_stock 语义修正、README 指标分类。
 - 测试：38 → **104 passed**；ruff clean；Eval：Task 1.000 / Accuracy 0.833 (n=12) / Single Fault Recovery 1/1 (n=1)。
 
+## Phase 2 完成（2026-11-01，125 passed）
+
+- **原子 Step Claim**（Commit A `4b489b2`）：LogicalStep/StepAttempt 表、条件 UPDATE+RETURNING claim、lease_epoch fencing、heartbeat、UNKNOWN_OUTCOME 独立态。
+- **Durable Worker**（Commit B `3a58603`）：DB 可领任务扫描、崩溃恢复（真实子进程 os._exit 后新进程接管 2/2）、checkpoint 版本一致性。
+- **Chaos Evaluation**（Commit C）：独立 ExternalEffectLedger、StateConsistencyChecker、2/4/8 跨进程并发（每步恰 1 赢家、重复外部效果 0）、机器可读产物 docs/eval/*.json。
+- 关键指标：crash 恢复 2/2、状态一致 5/5、stale fencing 拒绝 2/2。Phase 2 Gate 12/12 通过。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行
