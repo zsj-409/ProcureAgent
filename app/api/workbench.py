@@ -74,7 +74,10 @@ async def reject_task(task_id: str, request: Request) -> dict:
     if not decision.allowed:
         raise HTTPException(
             status_code=decision.http_status,
-            detail={"reason_code": decision.reason_code or "DENIED", "detail": f"Rejection denied for task {task_id}"},
+            detail={
+                "reason_code": decision.reason_code or "DENIED",
+                "detail": f"Rejection denied for task {task_id}",
+            },
         )
 
     repository = request.app.state.repository

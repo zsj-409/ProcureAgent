@@ -42,12 +42,27 @@ class ProcurementScorer:
             raise ValidationError("quantity must be greater than zero")
 
         price_weight, delivery_weight, stock_weight = self._weights(preference)
-        min_price = min(q.unit_price for q in quotes)
+
+        # Phase 1: price ranking MUST use comparable reference costs only.
+        # Quotes that could not be normalized (missing/stale FX) are excluded
+        # from the price comparison but still carried for human review.
+        comparable = [q for q in quotes if q.is_comparable()]
+        if not comparable:
+            raise ValidationError(
+                "No comparable quotes: every quote lacks a normalized reference "
+                "price (FX missing/stale); cannot rank prices."
+            )
+        min_price = min(q.normalized_unit_price_ref for q in comparable)
         min_delivery = min(q.delivery_days for q in quotes)
 
         scored: list[ScoredQuote] = []
         for quote in quotes:
-            price_score = price_weight * (min_price / quote.unit_price)
+            # Non-comparable quotes get a zero price score (they cannot be
+            # ranked) but keep delivery/stock scores; they never win on price.
+            if quote.is_comparable():
+                price_score = price_weight * (min_price / quote.normalized_unit_price_ref)
+            else:
+                price_score = Decimal(0)
             delivery_score = (
                 delivery_weight
                 if quote.delivery_days == 0
@@ -67,12 +82,19 @@ class ProcurementScorer:
             )
 
         best = max(scored, key=lambda item: item.total_score)
-        estimated_total = (best.quote.unit_price * quantity).quantize(Decimal("0.01"))
+        # Phase 1: the estimated total is computed from the comparable
+        # reference price, not the raw currency price.
+        if best.quote.is_comparable():
+            estimated_total = (best.quote.normalized_unit_price_ref * quantity).quantize(Decimal("0.01"))
+            total_label = best.quote.reference_currency
+        else:
+            estimated_total = (best.quote.unit_price * quantity).quantize(Decimal("0.01"))
+            total_label = best.quote.currency
         reason = (
             f"Selected {best.quote.supplier_id}: best weighted score "
             f"{best.total_score} (price {best.price_score}, delivery {best.delivery_score}, "
             f"stock {best.stock_score}) using {preference.value} weights; "
-            f"estimated total {estimated_total} USD."
+            f"estimated total {estimated_total} {total_label}."
         )
         recommendation = ProcurementRecommendation(
             recommended_supplier=best.quote.supplier_id,

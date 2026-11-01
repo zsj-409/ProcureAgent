@@ -35,8 +35,8 @@ def _collect(*suppliers: str) -> list[PlanStep]:
 
 
 VALID_FULL = ProcurementPlan(
-    steps=_collect("s1", "s2")
-    + [
+    steps=[
+        *_collect("s1", "s2"),
         PlanStep(action=PlanAction.NORMALIZE),
         PlanStep(action=PlanAction.SCORE),
         PlanStep(action=PlanAction.CHECK_POLICY),
@@ -45,8 +45,8 @@ VALID_FULL = ProcurementPlan(
 )
 
 VALID_REVIEW_PATH = ProcurementPlan(
-    steps=_collect("s1")
-    + [
+    steps=[
+        *_collect("s1"),
         PlanStep(action=PlanAction.NORMALIZE),
         PlanStep(action=PlanAction.SCORE),
         PlanStep(action=PlanAction.CHECK_POLICY),
@@ -95,11 +95,7 @@ def test_score_before_collect_rejected():
 
 def test_missing_policy_check_rejected():
     plan = ProcurementPlan(
-        steps=_collect("s1")
-        + [
-            PlanStep(action=PlanAction.NORMALIZE),
-            PlanStep(action=PlanAction.SCORE),
-        ]
+        steps=[*_collect("s1"), PlanStep(action=PlanAction.NORMALIZE), PlanStep(action=PlanAction.SCORE)]
     )
     error = PlanValidator(max_steps=20).validate(plan, PROFILES)
     assert error is not None
@@ -108,11 +104,7 @@ def test_missing_policy_check_rejected():
 
 def test_missing_normalize_rejected():
     plan = ProcurementPlan(
-        steps=_collect("s1")
-        + [
-            PlanStep(action=PlanAction.SCORE),
-            PlanStep(action=PlanAction.CHECK_POLICY),
-        ]
+        steps=[*_collect("s1"), PlanStep(action=PlanAction.SCORE), PlanStep(action=PlanAction.CHECK_POLICY)]
     )
     error = PlanValidator(max_steps=20).validate(plan, PROFILES)
     assert error is not None
@@ -121,8 +113,8 @@ def test_missing_normalize_rejected():
 
 def test_finalize_not_last_rejected():
     plan = ProcurementPlan(
-        steps=_collect("s1")
-        + [
+        steps=[
+            *_collect("s1"),
             PlanStep(action=PlanAction.NORMALIZE),
             PlanStep(action=PlanAction.SCORE),
             PlanStep(action=PlanAction.CHECK_POLICY),
@@ -137,8 +129,8 @@ def test_finalize_not_last_rejected():
 
 def test_policy_before_score_rejected():
     plan = ProcurementPlan(
-        steps=_collect("s1")
-        + [
+        steps=[
+            *_collect("s1"),
             PlanStep(action=PlanAction.NORMALIZE),
             PlanStep(action=PlanAction.CHECK_POLICY),
             PlanStep(action=PlanAction.SCORE),
@@ -165,8 +157,8 @@ def test_illegal_action_rejected():
 
 def test_duplicate_supplier_rejected():
     plan = ProcurementPlan(
-        steps=_collect("s1", "s1")
-        + [
+        steps=[
+            *_collect("s1", "s1"),
             PlanStep(action=PlanAction.NORMALIZE),
             PlanStep(action=PlanAction.SCORE),
             PlanStep(action=PlanAction.CHECK_POLICY),
@@ -179,8 +171,8 @@ def test_duplicate_supplier_rejected():
 
 def test_unknown_supplier_rejected():
     plan = ProcurementPlan(
-        steps=_collect("ghost")
-        + [
+        steps=[
+            *_collect("ghost"),
             PlanStep(action=PlanAction.NORMALIZE),
             PlanStep(action=PlanAction.SCORE),
             PlanStep(action=PlanAction.CHECK_POLICY),

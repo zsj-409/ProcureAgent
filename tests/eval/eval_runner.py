@@ -167,7 +167,7 @@ CASES = [
     {"name": "portal_supplier_failure", "mode": "structured", "payload": {"product_name": "API Only Mouse", "quantity": 1}, "expected": "COMPLETED", "supplier": "mock_api_supplier"},
     {"name": "single_supplier_valid", "mode": "structured", "payload": {"product_name": "API Only Mouse", "quantity": 1}, "expected": "COMPLETED", "supplier": "mock_api_supplier", "supplier_mode": "single_api"},
     {"name": "all_suppliers_fail", "mode": "structured", "payload": {"product_name": "No Such Product", "quantity": 1}, "expected": "FAILED", "supplier": None},
-    {"name": "low_stock_fails", "mode": "structured", "payload": {"product_name": "Low Stock Mouse", "quantity": 20}, "expected": "FAILED", "supplier": None},
+    {"name": "low_stock_shortfall_routes_to_approval", "mode": "structured", "payload": {"product_name": "Low Stock Mouse", "quantity": 20}, "expected": "WAITING_APPROVAL", "supplier": None, "expect_shortfall": True},
     {"name": "abnormal_price_fails", "mode": "structured", "payload": {"product_name": "Zero Price Mouse", "quantity": 1}, "expected": "FAILED", "supplier": None},
     {"name": "flaky_retry_recovers", "mode": "structured", "payload": {"product_name": "Flaky Recovery Mouse", "quantity": 1}, "expected": "COMPLETED", "supplier": "flaky_supplier", "supplier_mode": "flaky"},
     {"name": "agent_normal", "mode": "agent", "message": "帮我采购20个MX Master 3S，优先交付速度", "expected": "WAITING_APPROVAL", "supplier": "mock_api_supplier"},
@@ -282,13 +282,20 @@ def main() -> None:
     accuracy_cases = [r for r in tasks if r["expected_supplier"] is not None]
     executor_total = sum(r["executor_attempts"] for r in results)
     executor_completed = sum(r["executor_completed"] for r in results)
+    # Phase 1: recovery is a SINGLE fault case (n=1), not a statistically
+    # meaningful recovery rate. Label it honestly; a real fault-injection
+    # matrix arrives with Phase 2.
+    recovery_n = len(recovery_cases)
+    recovery_ok = sum(r["success"] for r in recovery_cases)
     metrics = {
         "task_success_rate": round(sum(r["success"] for r in tasks) / len(tasks), 3),
         "interpretation_success_rate": round(sum(r["interpretation_success"] for r in interpretation_cases) / len(interpretation_cases), 3),
         "plan_validation_success_rate": round(sum(r["plan_valid"] for r in results if r["expected"] != "INTERPRETATION_FAILED") / len(tasks), 3),
         "executor_success_rate": round(executor_completed / executor_total, 3) if executor_total else 1.0,
-        "recovery_success_rate": round(sum(r["success"] for r in recovery_cases) / len(recovery_cases), 3) if recovery_cases else 1.0,
+        # Honest label: single-fault recovery case, not a population rate.
+        "single_fault_recovery": {"pass": recovery_ok, "n": recovery_n},
         "recommendation_accuracy": round(sum(r["supplier_match"] for r in accuracy_cases) / len(accuracy_cases), 3) if accuracy_cases else 1.0,
+        "recommendation_accuracy_n": len(accuracy_cases),
         "average_steps": round(sum(r["steps"] for r in tasks) / len(tasks), 3),
         "average_latency_ms": round(sum(r["latency_ms"] for r in results) / len(results), 1),
         "average_llm_calls": round(sum(r["llm_calls"] for r in results) / len(results), 3),
@@ -296,13 +303,13 @@ def main() -> None:
     plan_metrics = run_plan_validation()
     output = {"plan_validation": plan_metrics, "metrics": metrics, "cases": results}
     print(json.dumps(output, ensure_ascii=False, indent=2))
-    print("\nProcureAgent v1.0 Eval")
+    print("\nProcureAgent v1.0 Eval (Phase 1)")
     print(f"Task Success Rate: {metrics['task_success_rate']:.3f}")
     print(f"Interpretation Success Rate: {metrics['interpretation_success_rate']:.3f}")
     print(f"Plan Validation Success Rate: {metrics['plan_validation_success_rate']:.3f}")
     print(f"Executor Success Rate: {metrics['executor_success_rate']:.3f}")
-    print(f"Recovery Success Rate: {metrics['recovery_success_rate']:.3f}")
-    print(f"Recommendation Accuracy: {metrics['recommendation_accuracy']:.3f}")
+    print(f"Single Fault Recovery: pass={recovery_ok}/{recovery_n} (n={recovery_n}) — NOT a population rate")
+    print(f"Recommendation Accuracy: {metrics['recommendation_accuracy']:.3f} (n={metrics['recommendation_accuracy_n']})")
     print(f"Average Steps: {metrics['average_steps']}")
     print(f"Average Latency (ms): {metrics['average_latency_ms']}")
     print(f"Average LLM Calls: {metrics['average_llm_calls']}")

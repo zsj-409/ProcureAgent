@@ -264,8 +264,17 @@ class ProcurementOrchestrator:
 
         state.current_step = "check_policy"
         self._save(state)
+        # Phase 1: the policy now distinguishes user hard budget from the
+        # internal approval threshold, and compares in a resolved currency.
         policy_decision = self.policy.evaluate(
-            recommendation.estimated_total, request.max_budget, shortfall=recommendation.shortfall
+            recommendation.estimated_total,
+            request.max_budget,
+            shortfall=recommendation.shortfall,
+            user_budget_limit=request.user_budget_limit,
+            budget_currency=request.budget_currency,
+            budget_mode=request.budget_mode.value,
+            estimated_total_currency="USD",  # scorer emits reference currency
+            budget_policy_version=request.budget_policy_version,
         )
         recommendation.approval_required = policy_decision.requires_approval
         self._trace_success(task_id, "check_policy", "ProcurementPolicy", "evaluate", 0)
@@ -435,6 +444,7 @@ class ProcurementOrchestrator:
                 supplier_id=supplier.supplier_id,
                 product_name=request.product_name,
                 source_type=supplier.source_type,
+                quantity=request.quantity,
             )
             quotes.append(quote)
         except Exception as exc:

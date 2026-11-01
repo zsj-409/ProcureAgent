@@ -7,14 +7,23 @@ from app.procurement.scorer import ProcurementScorer
 
 
 def _quote(supplier_id: str, price: str, delivery: int) -> SupplierQuote:
+    price_dec = Decimal(price)
     return SupplierQuote(
         supplier_id=supplier_id,
         product_name="MX Master 3S",
-        unit_price=Decimal(price),
+        unit_price=price_dec,
         currency="USD",
         available_stock=20,
         delivery_days=delivery,
         source_type="api",
+        # Phase 1: same-currency quotes are directly comparable — the
+        # normalizer would set these fields; tests construct them explicitly.
+        raw_quote={"unit_price": price},
+        reference_currency="USD",
+        normalized_unit_price_ref=price_dec,
+        normalized_total_cost_ref=(price_dec * Decimal(20)),
+        fx_status="OK",
+        normalization_status="comparable",
     )
 
 

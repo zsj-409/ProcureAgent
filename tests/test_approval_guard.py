@@ -12,12 +12,10 @@ Covers the P0 anonymous-approval fix:
 import json
 from decimal import Decimal
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.infrastructure.settings import Settings
 from app.main import create_app
-from app.suppliers.base import SupplierProfile, SupplierRegistry
 
 
 def _make_client(tmp_path, *, auth_enabled: bool = True, demo_header: str = "") -> TestClient:
@@ -61,13 +59,14 @@ def _task_waiting_approval(client: TestClient, tmp_path) -> str:
     """
 
     repository = client.app.state.repository
+    from datetime import UTC, datetime
+
     from app.agent.state import TaskState, TaskStatus
     from app.procurement.schemas import (
         ProcurementRecommendation,
         ProcurementRequest,
         SupplierQuote,
     )
-    from datetime import UTC, datetime
 
     task_id = "task-guard-1"
     request = ProcurementRequest(product_name="MX Master 3S", quantity=1)

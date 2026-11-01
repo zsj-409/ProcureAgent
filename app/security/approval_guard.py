@@ -19,7 +19,6 @@ from fastapi import Request
 
 from ..infrastructure.settings import Settings
 from .principal import (
-    AuthNotConfiguredError,
     DemoIdentityProvider,
     Principal,
     Role,

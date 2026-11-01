@@ -189,6 +189,9 @@ Current v2 verification result:
 38 passed
 ```
 
+> Phase 1 (2026-11-01) expanded the suite; the current run is **104 passed**
+> (see `docs/experiments/PHASE1_CORRECTNESS_REPORT.md` for the full breakdown).
+
 Evaluation:
 
 ```bash
@@ -197,15 +200,20 @@ python -m tests.eval.eval_runner
 
 > The evaluation suite intentionally includes API failures, portal failures, all-supplier failures, malformed inputs, and recovery scenarios.
 
-The current recorded results include:
+### Metric status (honest classification, 2026-11-01)
 
-```text
-Recovery Success Rate = 1.000
-Recommendation Accuracy = 1.000
-Plan Validation Success Rate = 1.000
-```
+| Metric | Status | Notes |
+|---|---|---|
+| Task Success Rate | `REPRODUCED_BASELINE` → `CURRENT_PHASE1_RESULT` | 1.000 on the 16-case suite (Phase 1 run) |
+| Interpretation Success Rate | `REPRODUCED_BASELINE` | 0.750 |
+| Plan Validation Success Rate | `CURRENT_PHASE1_RESULT` | 1.000 on the runner's inline pair; the adversarial suite is in `tests/test_plan_validator_phase1.py` |
+| Executor Success Rate | `REPRODUCED_BASELINE` | 0.618 — includes intentionally injected failures, not a normal-case rate |
+| Single Fault Recovery | `CURRENT_PHASE1_RESULT` | `pass=1/1 (n=1)` — **a single fault case, NOT a population recovery rate**; a real fault-injection matrix arrives in Phase 2 |
+| Recommendation Accuracy | `HISTORICAL_RESULT` 1.000 → measured `CURRENT_PHASE1_RESULT` 0.667–0.833 | README's historical 1.000 was **not reproducible**; the metric is label-matching against pre-filled expected suppliers, not derived ground truth. Deriving true cost-optimal accuracy is Phase 6 work. |
 
-`Executor Success Rate` is also reported, but it includes intentionally injected supplier failures, so it should not be read as a normal-case success percentage.
+Historical README numbers above 1.000 are preserved as `HISTORICAL_RESULT` and
+are **not** claimed for the current code. Negative/older results are kept in
+`docs/audit/PROCUREAGENT_V3_BASELINE_AUDIT.md`.
 
 ## Scope
 

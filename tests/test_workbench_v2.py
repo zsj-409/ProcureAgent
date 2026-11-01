@@ -12,13 +12,20 @@ from app.procurement.scorer import ProcurementScorer
 
 
 def _quote(supplier_id: str, price: str, stock: int, delivery: int = 3) -> SupplierQuote:
+    price_dec = Decimal(price)
     return SupplierQuote(
         supplier_id=supplier_id,
         product_name="MX Master 3S",
-        unit_price=Decimal(price),
+        unit_price=price_dec,
         available_stock=stock,
         delivery_days=delivery,
         source_type="api",
+        raw_quote={"unit_price": price},
+        reference_currency="USD",
+        normalized_unit_price_ref=price_dec,
+        normalized_total_cost_ref=(price_dec * Decimal(stock)),
+        fx_status="OK",
+        normalization_status="comparable",
     )
 
 
