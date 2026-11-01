@@ -1,0 +1,30 @@
+{
+  "phase": 4,
+  "commit": "B",
+  "date": "2026-11-01T12:11:44.083852+00:00",
+  "environment": {
+    "browser": "chromium-headless (playwright async)",
+    "portal": "local http.server (tests/eval/portal_world.py)",
+    "llm": "NONE — SCRIPTED/MOCK only, REAL_LLM_NOT_RUN",
+    "budget": {
+      "max_actions": 30,
+      "max_reobservations": 10,
+      "max_refreshes": 3,
+      "max_llm_calls": 5,
+      "max_cost": 10.0
+    }
+  },
+  "methods": [
+    "state-aware"
+  ],
+  "faults": [
+    "NONE",
+    "F1_SELECTOR_DRIFT",
+    "F2_LAYOUT_DRIFT",
+    "F4_MODAL_INTERRUPTION",
+    "F5_SESSION_EXPIRED",
+    "F7_PROMPT_INJECTION",
+    "F8_AMBIGUOUS_UNSAFE"
+  ],
+  "data_split": "DEV (pilot)"
+}

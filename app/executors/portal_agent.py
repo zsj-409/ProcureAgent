@@ -39,6 +39,9 @@ MAX_SNAPSHOT_ELEMENTS = 14
 MAX_TABLE_ROWS = 10
 MAX_CARDS = 12
 PRICE_RE = re.compile(r"(?:[$¥€£]|USD|CNY|usd|cny)\s*([0-9][0-9,]*(?:\.[0-9]+)?)")
+# Suffix-currency variant ("99.99 USD"): used only for cell extraction,
+# never for _row_name (which must not truncate a product name containing a digit).
+PRICE_SUFFIX_RE = re.compile(r"([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:[$¥€£]|(?:USD|CNY|usd|cny))")
 STOCK_RE = re.compile(r"(?:库存|in stock|stock|available|available units)[^0-9]{0,6}([0-9]+)", re.IGNORECASE)
 DELIVERY_RE = re.compile(r"([0-9]+)\s*(?:天|日|days?)", re.IGNORECASE)
 HEADER_HINTS = {
@@ -300,7 +303,7 @@ def _row_name(text: str) -> str:
 def _parse_card(card: str) -> dict[str, str] | None:
     """Regex-parse a free-form card text (price + anchored stock/delivery)."""
 
-    price_match = PRICE_RE.search(card)
+    price_match = PRICE_RE.search(card) or PRICE_SUFFIX_RE.search(card)
     if price_match is None:
         return None
     price_value = price_match.group(1).replace(",", "")
@@ -348,7 +351,7 @@ def parse_quote_rows(
 
                 name = cell("name") or _row_name(" | ".join(row))
                 price_text = cell("price")
-                price_match = PRICE_RE.search(price_text)
+                price_match = PRICE_RE.search(price_text) or PRICE_SUFFIX_RE.search(price_text)
                 fields = {
                     "name": name,
                     "price": price_match.group(1).replace(",", "") if price_match else "",

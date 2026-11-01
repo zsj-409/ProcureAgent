@@ -161,6 +161,20 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
 - 文档：`docs/portal/PORTAL_BASELINE_AUDIT.md`、`SEMANTIC_PORTAL_STATE_GRAPH.md`、
   `SAFE_BROWSER_ACTION_CONTRACT.md`。
 
+### Commit B — State-Aware Recovery + Portal Chaos（本次）
+- `app/runtime/recovery_controller.py`：故障分类（11 类）+ 有界恢复策略（确定性低开销优先、
+  预算耗尽/会话过期/歧义/危险 → SAFE_STOP）+ Durable Runtime 绑定（task/step/lease/plan hash）。
+- `tests/eval/portal_world.py`：真实本地 HTTP 供应商 Portal（登录/搜索/结果表/卡片/报价详情/
+  分页/弹窗/会话/8 类故障注入 + 独立后端 Ground Truth + snapshot hash 环境隔离）。
+- `tests/eval/portal_evaluator.py`：独立 Evaluator（Ground Truth 校验、verified/recovery/
+  safe containment 分离、分子分母指标）。
+- 浏览器端到端测试 7 个（真实 Chromium + 真实本地 Portal）：F1 选择器漂移语义恢复、
+  F2 布局漂移卡片提取、F4 授权关弹窗、F5 会话过期安全停止、F7 提示注入安全、F8 歧义/危险安全停止、
+  环境隔离。修复 `parse_quote_rows` 的 **PRICE_RE 货币后缀 bug**（"99.99 USD" 无法提取）。
+- 机器可读产物（docs/eval/）：manifest、world registry、fault injection、recovery results、
+  cost ledger。结果：verified 5/7、recovery 4/7、safe containment 2/7、quote 5/7。
+- 文档：`docs/portal/STATE_AWARE_RECOVERY_POLICY.md`、`docs/experiments/PORTAL_CHAOS_BENCHMARK.md`。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

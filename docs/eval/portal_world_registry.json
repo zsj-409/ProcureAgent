@@ -1,0 +1,51 @@
+[
+  {
+    "world": "portal-none",
+    "fault": "NONE",
+    "fault_seed": 1,
+    "template_version": "t1",
+    "snapshot_hash": "34d0d9ae184583b6"
+  },
+  {
+    "world": "portal-f1",
+    "fault": "F1_SELECTOR_DRIFT",
+    "fault_seed": 7,
+    "template_version": "t1",
+    "snapshot_hash": "b92cd4763707b8e8"
+  },
+  {
+    "world": "portal-f2",
+    "fault": "F2_LAYOUT_DRIFT",
+    "fault_seed": 3,
+    "template_version": "t1",
+    "snapshot_hash": "0c223a92c2fe2b23"
+  },
+  {
+    "world": "portal-f4",
+    "fault": "F4_MODAL_INTERRUPTION",
+    "fault_seed": 2,
+    "template_version": "t1",
+    "snapshot_hash": "19aac65b7aea6665"
+  },
+  {
+    "world": "portal-f5",
+    "fault": "F5_SESSION_EXPIRED",
+    "fault_seed": 4,
+    "template_version": "t1",
+    "snapshot_hash": "bb2d9ea4506d955a"
+  },
+  {
+    "world": "portal-f7",
+    "fault": "F7_PROMPT_INJECTION",
+    "fault_seed": 5,
+    "template_version": "t1",
+    "snapshot_hash": "b8feb050e03d3ae5"
+  },
+  {
+    "world": "portal-f8",
+    "fault": "F8_AMBIGUOUS_UNSAFE",
+    "fault_seed": 6,
+    "template_version": "t1",
+    "snapshot_hash": "0c686bbb2e2ee949"
+  }
+]
