@@ -111,6 +111,65 @@ class ProcurementOrchestrator:
             max_steps=self.runtime.budget.max_steps
         )
 
+    async def execute_step(
+        self,
+        *,
+        task_id: str,
+        step_key: str,
+        logical_step_id: int,
+        claim,
+        worker_id: str,
+    ) -> dict:
+        """Execute ONE logical step under an atomic claim (Phase 2 durable
+        worker entry point).
+
+        Supports COLLECT_SUPPLIER steps (the only external-executing action).
+        The caller (DurableWorker) owns the lease; this method performs the
+        external call and returns a result_ref for the fenced completion.
+        """
+
+        request = self.repository.get_request(task_id)
+        if request is None:
+            raise ValueError(f"Task {task_id} has no persisted request")
+
+        # Parse the step key: collect_<supplier_id>
+        if not step_key.startswith("collect_"):
+            return {"result_ref": f"noop:{step_key}", "status": "noop"}
+        supplier_id = step_key[len("collect_"):]
+        supplier = next((s for s in self.router.suppliers() if s.supplier_id == supplier_id), None)
+        if supplier is None:
+            raise ValueError(f"Unknown supplier {supplier_id} in step {step_key}")
+
+        async def collect() -> dict:
+            executor = self.router.route(supplier)
+            result = await executor.execute(
+                ExecutorTask(
+                    task_id=task_id,
+                    supplier=supplier,
+                    product_name=request.product_name,
+                    quantity=request.quantity,
+                )
+            )
+            if not result.success or not result.quote:
+                from ..errors import SupplierUnavailableError
+
+                raise SupplierUnavailableError(result.error or "No quote returned")
+            return result.quote
+
+        raw_quote = await collect()
+        # Normalize (quote freshness / comparability is enforced upstream).
+        quote = self.normalizer.normalize(
+            raw_quote,
+            supplier_id=supplier_id,
+            product_name=request.product_name,
+            source_type=supplier.source_type,
+            quantity=request.quantity,
+        )
+        result_ref = f"quote:{supplier_id}:{quote.collected_at.isoformat()}"
+        # Persist the normalized quote under the step's result ref (audit).
+        self.repository.save_step_result(task_id, step_key, quote)
+        return {"result_ref": result_ref, "status": "ok", "supplier_id": supplier_id}
+
     def _validate_plan_for_execution(
         self, plan: ProcurementPlan, suppliers: list[SupplierProfile]
     ) -> str | None:

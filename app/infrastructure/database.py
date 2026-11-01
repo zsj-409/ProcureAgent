@@ -463,6 +463,54 @@ class TaskRepository:
                 .all()
             )
 
+    def save_step_result(self, task_id: str, step_key: str, quote) -> None:
+        """Persist a normalized quote under the step's logical result ref.
+
+        Used by the durable worker's ``execute_step`` so a resumed task can
+        read the quote back for checkpoint reuse without re-contacting the
+        supplier. Stored as a StepExecution COMPLETED row (audit preserved).
+        """
+
+        with self._session_factory() as session:
+            session.add(
+                StepExecution(
+                    task_id=task_id,
+                    step_name=step_key,
+                    supplier_id=quote.supplier_id,
+                    status="COMPLETED",
+                    attempt=1,
+                    started_at=_utcnow(),
+                    finished_at=_utcnow(),
+                    result_json=quote.model_dump_json(),
+                )
+            )
+            session.commit()
+
+    def find_reclaimable_tasks(self, now: datetime) -> list[str]:
+        """Return task ids that are (a) non-terminal and (b) not owned by a
+        live worker lease (no CLAIMED logical step with lease_expires_at >
+        now). A task whose last logical step lease expired is reclaimable —
+        the DB row survives process death.
+
+        Terminal statuses are excluded: COMPLETED, REJECTED, FAILED.
+        """
+
+        with self._session_factory() as session:
+            rows = session.execute(
+                text(
+                    "SELECT DISTINCT t.id FROM tasks t "
+                    "WHERE t.status NOT IN ('COMPLETED','REJECTED','FAILED') "
+                    "AND NOT EXISTS ("
+                    "  SELECT 1 FROM logical_steps ls "
+                    "  WHERE ls.task_id = t.id "
+                    "  AND ls.status = 'CLAIMED' "
+                    "  AND ls.lease_expires_at > :now"
+                    ")"
+                ),
+                {"now": now},
+            ).fetchall()
+            return [str(r[0]) for r in rows]
+
     def record_trace(self, entry: dict) -> None:
         """Persist one trace record."""
 
