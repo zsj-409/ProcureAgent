@@ -327,6 +327,24 @@ class TaskRepository:
             return None
         return ProcurementRecommendation.model_validate_json(record.recommendation_json)
 
+    def cas_transition(self, task_id: str, *, from_status: str, to_status: str) -> bool:
+        """Atomic compare-and-swap of a task's status (Phase 3 approval CAS).
+
+        Returns True only when the task was in ``from_status`` and was moved
+        to ``to_status``. Concurrent writers: exactly one wins.
+        """
+
+        with self._session_factory() as session:
+            result = session.execute(
+                text(
+                    "UPDATE tasks SET status=:to, updated_at=:now "
+                    "WHERE id=:id AND status=:from"
+                ),
+                {"id": task_id, "from": from_status, "to": to_status, "now": _utcnow()},
+            )
+            session.commit()
+            return result.rowcount == 1
+
     def create_approval(
         self,
         task_id: str,

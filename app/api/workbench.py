@@ -84,10 +84,21 @@ async def reject_task(task_id: str, request: Request) -> dict:
     record = repository.get(task_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    if record.status != TaskStatus.WAITING_APPROVAL.value:
+    # Phase 3 CAS: reject only wins if the task is still WAITING_APPROVAL.
+    # Concurrent approve/reject: exactly one transition succeeds.
+    changed = repository.cas_transition(
+        task_id,
+        from_status=TaskStatus.WAITING_APPROVAL.value,
+        to_status=TaskStatus.REJECTED.value,
+    )
+    if not changed:
+        current = repository.get(task_id)
         raise HTTPException(
             status_code=409,
-            detail=f"Task cannot be rejected from status {record.status}",
+            detail={
+                "reason_code": "APPROVAL_RACE_LOST",
+                "detail": f"Task cannot be rejected from status {current.status if current else '?'}",
+            },
         )
     approver_id = decision.principal.id if decision.principal else "unknown"
     repository.create_approval(
@@ -98,9 +109,6 @@ async def reject_task(task_id: str, request: Request) -> dict:
         reason_code=None,
     )
     now = datetime.now(UTC)
-    record.status = TaskStatus.REJECTED.value
-    record.updated_at = now
-    repository.save_state_record(record)
     return {
         "task_id": task_id,
         "status": TaskStatus.REJECTED.value,

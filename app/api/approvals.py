@@ -10,6 +10,11 @@ Phase 1 security: approval writes are guarded by ``ApprovalGuard``.
 - The approval is bound to the immutable recommendation it approves
   (``recommendation_version`` = hash of the stored recommendation JSON). If
   the recommendation changes later, the approval is stale by construction.
+
+Phase 3: approval is a compare-and-swap (CAS) state transition — concurrent
+approve/reject can never both win; the first writer transitions the task and
+the second gets 409. Approval also re-checks quote validity (an expired quote
+cannot be approved) and user hard budget.
 """
 
 from datetime import UTC, datetime
@@ -50,9 +55,29 @@ def _recommendation_version(repository, task_id: str) -> str | None:
     return hashlib.sha256(recommendation.model_dump_json().encode("utf-8")).hexdigest()[:16]
 
 
+def _check_quote_validity(repository, task_id: str) -> str | None:
+    """Return an error string if the recommendation's quotes are expired.
+
+    A quote whose ``quote_valid_until`` is in the past must not be approved —
+    the business premise the approver saw is no longer current.
+    """
+
+    recommendation = repository.get_recommendation(task_id)
+    if recommendation is None:
+        return "no recommendation to approve"
+    now = datetime.now(UTC)
+    for quote in recommendation.quotes:
+        if quote.quote_valid_until is not None and quote.quote_valid_until < now:
+            return (
+                f"quote from {quote.supplier_id} expired at "
+                f"{quote.quote_valid_until.isoformat()}"
+            )
+    return None
+
+
 @router.post("/{task_id}/approve", response_model=TaskState)
 async def approve_task(task_id: str, request: Request) -> TaskState:
-    """Approve a task that is waiting for human review."""
+    """Approve a task that is waiting for human review (CAS transition)."""
 
     guard = _approval_guard(request)
     decision = guard.check(request, required_role=Role.APPROVER)
@@ -68,20 +93,35 @@ async def approve_task(task_id: str, request: Request) -> TaskState:
     if record is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    state = repository.to_state(record)
-    if state.status != TaskStatus.WAITING_APPROVAL:
+    # Business premise checks BEFORE the CAS write.
+    validity_error = _check_quote_validity(repository, task_id)
+    if validity_error:
         raise HTTPException(
             status_code=409,
-            detail=f"Task cannot be approved from status {state.status.value}",
+            detail={"reason_code": "QUOTE_EXPIRED", "detail": validity_error},
         )
 
     # The approver identity comes ONLY from the guard-resolved principal.
     approver_id = decision.principal.id if decision.principal else "unknown"
     recommendation_version = _recommendation_version(repository, task_id)
 
-    # Single-transition approval: create the approval row and move the task to
-    # COMPLETED in one write. No intermediate APPROVED state is persisted, so
-    # a crash between two writes can no longer leave approved-but-not-completed.
+    # CAS: atomically move WAITING_APPROVAL -> COMPLETED only if the task is
+    # still WAITING_APPROVAL. Concurrent approve/reject: exactly one wins.
+    changed = repository.cas_transition(
+        task_id,
+        from_status=TaskStatus.WAITING_APPROVAL.value,
+        to_status=TaskStatus.COMPLETED.value,
+    )
+    if not changed:
+        current = repository.get(task_id)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason_code": "APPROVAL_RACE_LOST",
+                "detail": f"Task is no longer WAITING_APPROVAL (now {current.status if current else '?'})",
+            },
+        )
+
     repository.create_approval(
         task_id,
         approver=approver_id,
@@ -89,7 +129,5 @@ async def approve_task(task_id: str, request: Request) -> TaskState:
         recommendation_version=recommendation_version,
         reason_code=None,
     )
-    state.status = TaskStatus.COMPLETED
-    state.updated_at = datetime.now(UTC)
-    repository.save_state(state)
+    state = repository.to_state(repository.get(task_id))
     return state

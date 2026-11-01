@@ -51,6 +51,13 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
 - **Chaos Evaluation**（Commit C）：独立 ExternalEffectLedger、StateConsistencyChecker、2/4/8 跨进程并发（每步恰 1 赢家、重复外部效果 0）、机器可读产物 docs/eval/*.json。
 - 关键指标：crash 恢复 2/2、状态一致 5/5、stale fencing 拒绝 2/2。Phase 2 Gate 12/12 通过。
 
+## Phase 3 完成（2026-11-01，144 passed）
+
+- **外部效果安全**（Commit A `581be71`）：能力契约、SQLite 事务化效果账本（invocation vs committed 分离、幂等去重）、非幂等崩溃 → UNKNOWN_OUTCOME。
+- **任务级持久化**（Commit B `21b27fa`）：reconcile_task_state 驱动完整任务终态，真实进程终止后完整采购任务恢复。
+- **审批完整性**（Commit C）：CAS 并发单赢家、报价过期门禁、版本绑定。
+- 崩溃窗口三类动作精确分类：只读 (inv 2/comm 0)、幂等 (inv 2/comm 1)、非幂等 (不重试→UNKNOWN)。0 重复业务副作用。Phase 3 Gate 15/15。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行
