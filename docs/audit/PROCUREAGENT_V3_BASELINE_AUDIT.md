@@ -19,12 +19,21 @@
 |---|---|---|
 | Repo reachable | `api.github.com` 200; codeload zip 200; `git clone` smart protocol **fails** (schannel handshake) | ✅ (zip imported) |
 | Git history | Imported snapshot has no upstream history; local git initialized with one commit | ⚠️ |
+| Archive source | `https://codeload.github.com/zsj-409/ProcureAgent/zip/refs/heads/main` (branch `main`) | ✅ |
+| Archive SHA-256 | `a4c14168782f37554c00be49892888028dcf47c5296d986de671d611e11787a8` (`proc.zip`) | ✅ |
+| Archive taken | 2026-11-01 15:46 (CST); zip entries dated 2026-10-05 12:35 | ✅ |
+| Upstream commit ID | Not determinable from the zip (no `.git` inside). Local import commit `e3b2647` is **not** an upstream commit. | ⚠️ |
+| Local baseline commit | `e3b2647` (import) → `145ea51` (Phase 0 audit) | ✅ |
 | Version | `app/main.py` reports `2.0.0`; changelog `v2.0.0 — Deep-Dive Release` | ✅ |
 | README claims | "38 passed" | ✅ **reproduced: 38 passed** (57.6s, 3 warnings) |
 | Dependency set | `requirements.txt` pins 10 packages | ✅ installed clean on py3.11 |
 
 > Python 3.14 fails to install `pydantic-core` (no prebuilt wheel, rust build
 > fails). The repo targets py3.11 (`target-version = "py311"` in ruff config).
+> Verified environment: Python 3.11.9, venv `.venv/` (fastapi 0.115.12,
+> uvicorn 0.34.0, pydantic 2.11.3, pydantic-core 2.33.1, sqlalchemy 2.0.39,
+> httpx 0.28.1, playwright 1.51.0, pytest 8.3.5, pytest-asyncio 0.25.3,
+> python-dotenv 1.0.1).
 
 ## 2. Module-by-module capability markers
 
