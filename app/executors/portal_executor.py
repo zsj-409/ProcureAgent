@@ -120,9 +120,14 @@ class PortalSession:
 
         self._browser = browser
         self._owns_browser = launched_by_us
-        if browser.contexts:
-            self._context = browser.contexts[0]
-            self._owns_context = False
+        # Phase 4 Task 5: NEVER blindly reuse the first existing CDP context.
+        # A remote CDP browser may carry another task's cookies/localStorage;
+        # per-task isolation requires a NEW context for this task.
+        if not launched_by_us and browser.contexts:
+            # A fresh incognito context is still isolated from existing
+            # contexts even when attached over CDP (no shared cookie jar).
+            self._context = await browser.new_context()
+            self._owns_context = True
         else:
             self._context = await browser.new_context()
             self._owns_context = True

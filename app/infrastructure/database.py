@@ -327,6 +327,50 @@ class TaskRepository:
             return None
         return ProcurementRecommendation.model_validate_json(record.recommendation_json)
 
+    def approval_cas_transition(
+        self,
+        task_id: str,
+        *,
+        from_status: str,
+        to_status: str,
+        approver: str,
+        decision: str,
+        recommendation_version: str | None = None,
+        reason_code: str | None = None,
+    ) -> bool:
+        """Atomic approval decision: CAS status change + audit row in ONE transaction.
+
+        Phase 4 P0 fix: the previous two-transaction approval (CAS then
+        create_approval) left a crash window where the task was COMPLETED but
+        the audit row was missing. This method commits the status transition
+        and the ApprovalRecord together; either both happen or neither.
+        Returns True only when the CAS won and the audit row was written.
+        """
+
+        with self._session_factory() as session:
+            result = session.execute(
+                text(
+                    "UPDATE tasks SET status=:to, updated_at=:now "
+                    "WHERE id=:id AND status=:from"
+                ),
+                {"id": task_id, "from": from_status, "to": to_status, "now": _utcnow()},
+            )
+            if result.rowcount != 1:
+                session.rollback()
+                return False
+            session.add(
+                ApprovalRecord(
+                    task_id=task_id,
+                    approver=approver,
+                    decision=decision,
+                    recommendation_version=recommendation_version,
+                    reason_code=reason_code,
+                    created_at=_utcnow(),
+                )
+            )
+            session.commit()
+            return True
+
     def cas_transition(self, task_id: str, *, from_status: str, to_status: str) -> bool:
         """Atomic compare-and-swap of a task's status (Phase 3 approval CAS).
 

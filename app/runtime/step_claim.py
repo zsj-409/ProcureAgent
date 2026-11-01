@@ -147,16 +147,34 @@ class StepClaimService:
         logical_step_id: int,
         worker_id: str,
         now: datetime | None = None,
+        task_id: str | None = None,
+        plan_hash: str | None = None,
     ) -> ClaimResult:
         """Atomically claim a step.
 
         Accepts PENDING steps and steps whose lease has EXPIRED (reclaim).
         Increments ``lease_epoch`` (fencing token) and ``attempt_count``.
         Returns the new epoch; the caller must use it to complete/fail the step.
+
+        Phase 4 (0.2): optional ``task_id`` / ``plan_hash`` expected values —
+        when provided they are added to the WHERE, so a caller holding another
+        task's step id cannot claim it (defense in depth beyond the caller
+        always using the id it just created).
         """
 
         now = now or self._clock.now()
         expiry = now + timedelta(seconds=self._lease_seconds)
+        where = (
+            "WHERE id=:id AND (status IN ('PENDING', 'RETRY_SCHEDULED') "
+            "   OR (status='CLAIMED' AND lease_expires_at < :now))"
+        )
+        params: dict = {"id": logical_step_id, "w": worker_id, "now": now, "expiry": expiry}
+        if task_id is not None:
+            where += " AND task_id=:task_id"
+            params["task_id"] = task_id
+        if plan_hash is not None:
+            where += " AND plan_hash=:plan_hash"
+            params["plan_hash"] = plan_hash
         with self._repo._session_factory() as session:
             row = session.execute(
                 text(
@@ -164,11 +182,10 @@ class StepClaimService:
                     "SET status='CLAIMED', owner_id=:w, "
                     "    lease_epoch=lease_epoch+1, lease_expires_at=:expiry, "
                     "    attempt_count=attempt_count+1, updated_at=:now "
-                    "WHERE id=:id AND (status IN ('PENDING', 'RETRY_SCHEDULED') "
-                    "   OR (status='CLAIMED' AND lease_expires_at < :now)) "
+                    f"{where} "
                     "RETURNING id, lease_epoch, attempt_count"
                 ),
-                {"id": logical_step_id, "w": worker_id, "now": now, "expiry": expiry},
+                params,
             ).fetchone()
             session.commit()
         if row is None:

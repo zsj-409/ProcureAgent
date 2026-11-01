@@ -105,12 +105,16 @@ async def approve_task(task_id: str, request: Request) -> TaskState:
     approver_id = decision.principal.id if decision.principal else "unknown"
     recommendation_version = _recommendation_version(repository, task_id)
 
-    # CAS: atomically move WAITING_APPROVAL -> COMPLETED only if the task is
-    # still WAITING_APPROVAL. Concurrent approve/reject: exactly one wins.
-    changed = repository.cas_transition(
+    # CAS + audit row in ONE transaction (Phase 4 P0 fix: no crash window
+    # where the task is COMPLETED but the approval record is missing).
+    changed = repository.approval_cas_transition(
         task_id,
         from_status=TaskStatus.WAITING_APPROVAL.value,
         to_status=TaskStatus.COMPLETED.value,
+        approver=approver_id,
+        decision="approved",
+        recommendation_version=recommendation_version,
+        reason_code=None,
     )
     if not changed:
         current = repository.get(task_id)
@@ -122,12 +126,5 @@ async def approve_task(task_id: str, request: Request) -> TaskState:
             },
         )
 
-    repository.create_approval(
-        task_id,
-        approver=approver_id,
-        decision="approved",
-        recommendation_version=recommendation_version,
-        reason_code=None,
-    )
     state = repository.to_state(repository.get(task_id))
     return state
