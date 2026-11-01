@@ -4,7 +4,16 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, create_engine
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    create_engine,
+    text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -74,6 +83,59 @@ class StepExecution(Base):
     result_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class LogicalStep(Base):
+    """One logical step in a task+plan version (Phase 2 durable runtime).
+
+    Ownership is enforced atomically: a step may have at most one valid
+    execution owner at a time, tracked by ``owner_id`` + ``lease_epoch``
+    (fencing token) + ``lease_expires_at``. Uniqueness is
+    (task_id, plan_hash, step_key) — never just action_type.
+    """
+
+    __tablename__ = "logical_steps"
+    __table_args__ = (
+        UniqueConstraint("task_id", "plan_hash", "step_key", name="uq_logical_step_key"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_id: Mapped[str] = mapped_column(String(64), index=True)
+    plan_hash: Mapped[str] = mapped_column(String(64), default="")
+    step_key: Mapped[str] = mapped_column(String(64), index=True)
+    action_type: Mapped[str] = mapped_column(String(32))
+    action_input_hash: Mapped[str] = mapped_column(String(64), default="")
+    status: Mapped[str] = mapped_column(String(24), index=True, default="PENDING")
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    lease_epoch: Mapped[int] = mapped_column(Integer, default=0)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    result_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class StepAttempt(Base):
+    """One actual execution attempt of a logical step (Phase 2).
+
+    A logical step may have many attempts; only the current lease holder may
+    submit a terminal state (fenced by owner_id + lease_epoch).
+    """
+
+    __tablename__ = "step_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    logical_step_id: Mapped[int] = mapped_column(Integer, index=True)
+    worker_id: Mapped[str] = mapped_column(String(64), index=True)
+    lease_epoch: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    attempt_status: Mapped[str] = mapped_column(String(24), index=True)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    external_request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    external_idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    observed_result_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tool_cost: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class TraceRecord(Base):
     """A persistent execution trace row."""
 
@@ -101,9 +163,17 @@ def build_session_factory(database_url: str) -> sessionmaker:
     engine_kwargs: dict[str, Any] = {}
     if database_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
+        # Phase 2: WAL allows concurrent readers + one writer across processes;
+        # busy_timeout makes concurrent writers wait instead of failing fast.
+        connect_args["timeout"] = 30
         if ":memory:" in database_url:
             engine_kwargs["poolclass"] = StaticPool
     engine = create_engine(database_url, connect_args=connect_args, **engine_kwargs)
+    if database_url.startswith("sqlite") and ":memory:" not in database_url:
+        with engine.connect() as conn:
+            conn.execute(text("PRAGMA journal_mode=WAL"))
+            conn.execute(text("PRAGMA busy_timeout=30000"))
+            conn.commit()
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
