@@ -253,32 +253,34 @@ async def _run_case_all_policies(case: FaultCase) -> list[dict]:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     cases = build_fault_cases()
-    # Pilot: DEV split only (diagnostic), then all splits for the record.
-    dev_cases = [c for c in cases if c.split == "DEV"]
+    # Full evaluation: all splits (DEV diagnostic, CONFIRMATION promotion
+    # gate, TEST frozen).
     all_results: list[dict] = []
-    for case in dev_cases:
+    for case in cases:
         all_results.extend(asyncio.run(_run_case_all_policies(case)))
 
-    (OUT / "recovery_policy_pilot.json").write_text(
-        json.dumps({"n_cases": len(dev_cases), "results": all_results}, indent=2, ensure_ascii=False),
+    (OUT / "recovery_policy_results.json").write_text(
+        json.dumps({"n_cases": len(cases), "results": all_results}, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
 
-    # Summary per policy.
-
-    for name in ("D_state_aware", "E_cost_aware", "F_tuned"):
-        rows = [r for r in all_results if r["policy"] == name]
-        n = len(rows)
-        recovered = sum(1 for r in rows if r["recovered"])
-        stopped = sum(1 for r in rows if r["safe_stop_ok"])
-        actions = sum(r["actions"] for r in rows)
-        obs = sum(r["observations"] for r in rows)
-        lat = sorted(r["latency_ms"] for r in rows)
-        print(
-            f"{name:14s} n={n} recovered={recovered}/{n} safe_stop={stopped}/{n} "
-            f"actions={actions} obs={obs} p50={lat[n//2] if lat else 0}ms"
-        )
-    print(f"\nwrote {OUT / 'recovery_policy_pilot.json'}")
+    # Summary per policy per split.
+    for split in ("DEV", "CONFIRMATION", "TEST"):
+        split_cases = {c.case_id for c in cases if c.split == split}
+        print(f"\n=== {split} ===")
+        for name in ("D_state_aware", "E_cost_aware", "F_tuned"):
+            rows = [r for r in all_results if r["policy"] == name and r["case_id"] in split_cases]
+            n = len(rows)
+            rec = sum(1 for r in rows if r["recovered"])
+            stop = sum(1 for r in rows if r["safe_stop_ok"])
+            neither = sum(1 for r in rows if not r["recovered"] and not r["safe_stop_ok"])
+            obs = sum(r["observations"] for r in rows)
+            lat = sorted(r["latency_ms"] for r in rows)
+            print(
+                f"{name:14s} n={n} recovered={rec}/{n} safe_stop={stop}/{n} "
+                f"NEITHER={neither} obs={obs} p50={lat[n // 2] if lat else 0}ms"
+            )
+    print(f"\nwrote {OUT / 'recovery_policy_results.json'}")
 
 
 if __name__ == "__main__":

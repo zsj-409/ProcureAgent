@@ -93,6 +93,18 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
   Oracle 0 违反验证 CBC 正确。Phase 6 Gate 18/18 通过；Optimizer 可作可选路径，
   Greedy 仍默认。
 
+## Phase 7 完成（2026-11-02，278 passed）
+
+- **Commit A `e27e5f4`**：Phase 6 指标勘误（Cluster Bootstrap n_clusters=7 CI [0,6.4]、
+  Greedy 分单上限公平性修复、冻结报价有效期）；统一 RecoveryObservation/RecoveryDecision +
+  Cost-Aware 恢复策略；12 族 × 3 难度判别性故障基准。
+- **Commit B `69efaa9`**：DEV pilot（40 案例真实浏览器）E/F 等成功率、观察数减半；
+  调参/晋级 Gate（REJECT 安全/质量退化、HOLD 等质等本、PROMOTE 验证改进）。
+- **Commit C**：全量评测（120 案例 × 3 策略 = 360 真实浏览器运行）。
+- **诚实结论**：成功率全部分裂饱和（100% 正确目标），三策略无成功率差异（负结果）；
+  成本差异真实（D 40 次观察 vs E/F 20+0 次）。E/F 等质低成本 → PROMOTE（收益仅成本）。
+  Phase 7 Gate 14/14 通过。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行

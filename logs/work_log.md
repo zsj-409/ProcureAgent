@@ -285,6 +285,17 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   `docs/experiments/RECOVERY_POLICY_FRONTIER.md`（pilot 结果）。
 - 产物：`docs/eval/recovery_policy_pilot.json`（40 案例逐条）。
 
+### Commit C — Independent Evaluation（本次，278 passed）
+- 全量评测：120 案例（12 族 × 3 难度）× 3 策略 = **360 次真实浏览器运行**。
+- **诚实结果**：成功率全部分裂饱和（rec 30/40 + safe_stop 10/40 = 100% 正确目标），
+  三策略无成功率差异（负结果）；**成本差异真实**——D 用 40 次观察（RE_OBSERVE 循环），
+  E/F 用 20 次（直接 SEMANTIC）+ 0 次（初始即目标）。
+- Promotion：E/F 等质低成本 → PROMOTE（收益仅成本，不声称成功率提升）。
+- OOD 测试 4 个（策略输入无模板字段、指标类互斥、safe_stop≠成功、case_id 稳定）。
+- 文档：RECOVERY_POLICY_ABLATION / RECOVERY_OOD_REPORT / PHASE7_FINAL_REPORT；
+  产物：recovery_policy_results.json（120 案例）。
+- **Phase 7 Gate 14/14 通过**。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）
