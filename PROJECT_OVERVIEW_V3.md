@@ -112,6 +112,16 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
   前端 `#/observatory` 视图。每个 Lab 标注诚实实验边界。
 - 9 新测试（API + 7 面试演示可复现）。Phase 1-7 无回归。
 
+## Finalization 完成（2026-11-02，311 passed，3 commits）
+
+- **Demo 安全门禁**：SINGLE_TENANT_DEMO_ONLY 显式标注、对象级 404、生产 auth 忽略
+  demo header、公开 artifact 无凭据扫描、5 Lab 全浏览器覆盖。
+- **Phase 8 Scoped Real-LLM Validation**：interpreter 10 场景 + portal 8 场景
+  冻结 harness；sandbox-only 默认拒绝付费调用；诚实 REAL_LLM_NOT_RUN manifest。
+- **面试交付材料**：docs/demo/ 6 份（Runbook/90s/5min/架构/取舍/主张证据）+ README
+  离线 Demo 章节。
+- 历史 benchmark 未修改；无真实付款；可离线启动。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行

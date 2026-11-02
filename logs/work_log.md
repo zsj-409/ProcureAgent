@@ -321,6 +321,31 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   observatory.js 内嵌 `<script>` 事件绑定不生效的真实 bug（移到模块 render()）。
 - 全量 293 passed，ruff clean。
 
+### Finalization（Task 0-8，311 passed，3 commits）
+
+- **Commit A `4d26f67`** — 最终 Demo 安全门禁：flight-recorder/approval-inspector 显式
+  SINGLE_TENANT_DEMO_ONLY 标注 + 对象级 404（无枚举）；生产 auth 忽略 demo header
+  （`test_production_auth_ignores_demo_header`）；随机 header 无法伪造 principal；
+  公开 artifact 无凭据扫描；flight-recorder UI Tab 补上（5 Lab 全浏览器覆盖）。
+  文档 `docs/workbench/FINAL_DEMO_SECURITY_AUDIT.md`。
+- **Commit B `881673f`** — Phase 8 Scoped Real-LLM Validation harness：
+  - `app/eval/phase8_llm.py`：10 冻结场景（中文/中英混合/数量/硬预算/交期/价格/
+    缺失/歧义/不可满足/币种）配对比较；规则 baseline 7/10（真实局限：元→CNY、
+    万台→10000）。
+  - `app/eval/phase8_portal.py`：8 冻结故障场景（F1-F8 + 会话/报价过期）离线 8/8，
+    动作白名单守卫。
+  - Settings 加 llm_sandbox_only/max_calls/max_tokens/retry_limit/cost_budget
+    （默认保守）；sandbox_only 强制 REAL_LLM_NOT_RUN。
+  - 诚实 manifest（git commit/input hash/world hash/model config/calls/tokens/cost）。
+  - 无凭据 → REAL_LLM_NOT_RUN，绝不发起真实调用。9 新测试。
+- **Commit C `da16078`** — 面试交付材料（docs/demo/ 6 份：DEMO_RUNBOOK、
+  90S/5MIN 演示稿、ARCHITECTURE_EXPLANATION、ENGINEERING_TRADEOFFS、
+  PROJECT_CLAIMS_AND_EVIDENCE）+ README 离线 Demo 章节 + 离线验证测试
+  （无 key 无模型客户端、无付款代码路径、历史 artifact 字节不变）。
+- **Task 7 Gate**：全量 311 passed（293+18）、ruff clean、Workbench 真实浏览器
+  e2e 通过、历史 benchmark 未修改、无真实付款/默认付费模型调用/生产 Demo Header。
+- 完成标准：可离线启动、安全演示、结果可追溯、架构与局限可解释。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）
