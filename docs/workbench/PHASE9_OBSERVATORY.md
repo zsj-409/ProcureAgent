@@ -52,7 +52,27 @@ or a fresh isolated task. Verified by `tests/test_phase9_demo.py`.
   present, `/js/views/observatory.js` served, index.html 200.
 - The Observatory does not modify any state (read-only endpoints).
 
-## 5. Remaining work (later phases)
+## 5. Demo Acceptance (Step 1) — three gaps closed
+
+| priority | gap | resolution |
+|---|---|---|
+| P0 | Observatory data access | flight-recorder + approval-inspector now require an authenticated principal (401 AUTH_REQUIRED default-deny when auth_enabled; demo header allowlist in isolated demo config). Artifact labs stay public (committed, non-sensitive). Tests: 4 new auth tests. |
+| P1 | 11/14 artifacts "missing" | Root cause: `_load` tried to JSON-parse CSV artifacts (optimization_comparison.csv, paired_method_comparison.csv, allocation_results.csv) and marked them missing. Fix: CSV artifacts reported present with `format: csv`. All 14 now show present. Test: `test_all_14_artifacts_present`. |
+| P1 | frontend real interaction | Real-browser e2e (`test_phase9_workbench_e2e.py`) drives Chromium against a live app: clicks all 4 tabs, asserts data tables render with committed numbers, empty states show "Missing/暂无" (never a fake zero), 404 path shows an error state. Also fixed a real bug: lab tab click handlers were inside an inline `<script>` (never executed in innerHTML) — moved to the module's `render()`. |
+
+**Verification**: 293 passed (was 287; +6: 4 auth + 1 artifact-count + 1 browser e2e),
+ruff clean.
+
+## 6. Reproducible demo route (fixed)
+
+1. `#/observatory` → artifact list (14/14 present)
+2. Chaos Recovery Lab → Phase 4 real-browser fault table
+3. Procurement Optimization → CBC comparison with honest boundary
+4. Agent Experiment Lab → Phase 7 120-case policy table
+5. Approval Inspector → live approvals (demo identity header) or "暂无" empty state
+6. Flight Recorder → live task trace (demo identity header)
+
+## 7. Remaining work (later phases)
 
 - Chaos Recovery Lab live re-run button (would require a real browser
   runner — deferred to avoid re-running benchmarks by default).

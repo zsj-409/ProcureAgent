@@ -9,6 +9,15 @@ Reads the machine-readable evaluation artifacts committed in docs/eval/
 4. Procurement Optimization    — greedy vs cheapest vs optimizer comparison
 5. Agent Experiment Lab        — recovery policy comparison (Phase 7)
 
+Access control (Demo Acceptance P0):
+- flight-recorder and approval-inspector expose LIVE task data (trace,
+  approvals) — they require an authenticated principal (default deny when
+  auth_enabled; demo header allowlist in isolated demo config). Read-only
+  does NOT mean anonymous-readable.
+- chaos-lab / optimization-comparison / experiment-lab serve COMMITTED
+  experiment artifacts (no live business data) — public read is acceptable,
+  but the artifact list still marks each file present/missing honestly.
+
 Every artifact is loaded with its recorded date/commit so the Workbench can
 label each result's experiment boundary (DEV/CONFIRMATION/TEST, MOCK vs real
 browser, n, and the honest negative results).
@@ -23,20 +32,50 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from ..security.approval_guard import ApprovalGuard
+
 router = APIRouter(tags=["observatory"])
 
 EVAL_DIR = Path(__file__).resolve().parents[2] / "docs" / "eval"
 CACHE: dict[str, Any] = {}
 
 
+def _guard(request: Request) -> ApprovalGuard:
+    guard = getattr(request.app.state, "approval_guard", None)
+    return guard if guard is not None else ApprovalGuard()
+
+
+def _require_principal(request: Request) -> None:
+    """P0: live-data endpoints require an authenticated principal. Default
+    deny — an unauthenticated caller gets 401 AUTH_REQUIRED and no data."""
+
+    guard = _guard(request)
+    principal = guard.resolve_principal(request)
+    if principal is None:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "reason_code": "AUTH_REQUIRED",
+                "detail": "Observatory live-data endpoint requires authentication",
+            },
+        )
+
+
 def _load(name: str) -> dict[str, Any] | list[Any] | None:
-    """Load a JSON artifact once (cached)."""
+    """Load a JSON artifact once (cached). CSV artifacts are reported as
+    present but not parsed (the endpoints that need them read them
+    directly or label them as files)."""
 
     if name in CACHE:
         return CACHE[name]
     path = EVAL_DIR / name
     if not path.exists():
         return None
+    if name.endswith(".csv"):
+        # CSV artifacts exist and are served as file references; we mark
+        # them present without parsing (keeps the artifact list honest).
+        CACHE[name] = {"present": True, "format": "csv", "name": name}
+        return CACHE[name]
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         CACHE[name] = data
@@ -83,8 +122,9 @@ async def list_artifacts(request: Request) -> dict[str, Any]:
 @router.get("/observatory/flight-recorder")
 async def flight_recorder(request: Request, task_id: str | None = None) -> dict[str, Any]:
     """Execution Flight Recorder: real executed steps per task (from the
-    task trace), never synthetic."""
+    task trace), never synthetic. **Requires authentication** (live task data)."""
 
+    _require_principal(request)
     repository = request.app.state.repository
     trace = getattr(request.app.state, "trace", None)
     tasks = repository.list_tasks(limit=50)
@@ -122,8 +162,10 @@ async def chaos_lab(request: Request) -> dict[str, Any]:
 
 @router.get("/observatory/approval-inspector")
 async def approval_inspector(request: Request) -> dict[str, Any]:
-    """Approval & Policy Inspector: approval records + policy gates per task."""
+    """Approval & Policy Inspector: approval records + policy gates per task.
+    **Requires authentication** (live approval data)."""
 
+    _require_principal(request)
     repository = request.app.state.repository
     records = repository.list_tasks(limit=100)
     approvals_by_task = {}

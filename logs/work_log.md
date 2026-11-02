@@ -310,6 +310,17 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   7 个面试演示可复现）。
 - 文档：`docs/workbench/PHASE9_OBSERVATORY.md`。
 
+### Demo Acceptance（Step 1，293 passed）
+
+- **P0 认证**：flight-recorder / approval-inspector 加 `_require_principal`（默认拒绝，
+  demo 配置下 header 白名单）；artifact 端点保持公开（已提交、非敏感）。4 个认证测试。
+- **P1 artifact 11/14**：根因 `_load` 用 JSON 解析 CSV artifact → 全部标记 present（format: csv）。
+  14/14 全在，`test_all_14_artifacts_present`。
+- **P1 真实浏览器交互**：`test_phase9_workbench_e2e.py` 驱动真实 Chromium 点击 4 个 Lab，
+  验证数据表格渲染、空状态显式显示（Missing/暂无，非假零）、404 错误路径；顺带修复
+  observatory.js 内嵌 `<script>` 事件绑定不生效的真实 bug（移到模块 render()）。
+- 全量 293 passed，ruff clean。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）
