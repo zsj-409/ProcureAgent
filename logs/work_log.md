@@ -275,6 +275,16 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   DYNAMIC_DOM→REFRESH、分层上限升级、LLM 默认禁用、无隐藏真值泄漏。
 - 文档：`docs/recovery/PHASE7_BASELINE_AUDIT.md`、`RECOVERY_POLICY_CONTRACT.md`。
 
+### Commit B — Recovery Policy Evolution（本次，274 passed）
+- DEV pilot（真实浏览器，40 案例）：D/E/F 三策略 recovered 30/40 + safe_stop 10/10
+  （F6 会话过期全部安全停止）。**区分度在成本**：E/F observations=20 vs D=40
+  （cost-aware 直接 SEMANTIC，Phase 4 ladder 重复 RE_OBSERVE）。成功率 DEV 饱和。
+- 调参/晋级测试 7 个：REJECT 安全退化/质量退化、HOLD 等质等本、PROMOTE 仅验证改进、
+  DEV-only 调参、TEST 冻结。
+- 文档：`docs/recovery/COST_AWARE_RECOVERY_POLICY.md`、
+  `docs/experiments/RECOVERY_POLICY_FRONTIER.md`（pilot 结果）。
+- 产物：`docs/eval/recovery_policy_pilot.json`（40 案例逐条）。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）
