@@ -122,7 +122,14 @@ async def list_artifacts(request: Request) -> dict[str, Any]:
 @router.get("/observatory/flight-recorder")
 async def flight_recorder(request: Request, task_id: str | None = None) -> dict[str, Any]:
     """Execution Flight Recorder: real executed steps per task (from the
-    task trace), never synthetic. **Requires authentication** (live task data)."""
+    task trace), never synthetic. **Requires authentication** (live task data).
+
+    Object-level authorization: in the current SINGLE_TENANT_DEMO_ONLY model,
+    any authenticated principal may read any task (there is only one tenant).
+    When a task_id is requested, the task must exist; a non-existent task
+    returns 404 WITHOUT revealing anything about other tasks' existence
+    (no ID enumeration — same 404 for missing and unauthorized in the future
+    multi-tenant model)."""
 
     _require_principal(request)
     repository = request.app.state.repository
@@ -146,7 +153,13 @@ async def flight_recorder(request: Request, task_id: str | None = None) -> dict[
         flights = [f for f in flights if f["task_id"] == task_id]
         if not flights:
             raise HTTPException(status_code=404, detail="Task not found")
-    return {**_artifact_meta("live-trace"), "flights": flights}
+    return {
+        **_artifact_meta("live-trace"),
+        "flights": flights,
+        "authz_model": "SINGLE_TENANT_DEMO_ONLY",
+        "note": "any authenticated principal may read any task in the single-tenant demo model; "
+                "multi-tenant object-level isolation is NOT IMPLEMENTED",
+    }
 
 
 @router.get("/observatory/chaos-lab")
@@ -186,6 +199,7 @@ async def approval_inspector(request: Request) -> dict[str, Any]:
         **_artifact_meta("live-approvals"),
         "approval_count": sum(len(v) for v in approvals_by_task.values()),
         "by_task": approvals_by_task,
+        "authz_model": "SINGLE_TENANT_DEMO_ONLY",
         "note": "approvals are bound to recommendation versions; stale versions "
                 "are detectable by the inspector (Phase 3 CAS + version binding)",
     }

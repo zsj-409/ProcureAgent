@@ -165,3 +165,64 @@ def test_artifact_endpoints_open_but_committed(tmp_path):
         assert client.get("/api/v1/observatory/chaos-lab").status_code == 200
         assert client.get("/api/v1/observatory/optimization-comparison").status_code == 200
         assert client.get("/api/v1/observatory/experiment-lab").status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Finalization Task 0 — demo security gate
+# ---------------------------------------------------------------------------
+
+def test_flight_recorder_task_id_missing_404(tmp_path):
+    """Object-level check: a non-existent task_id returns 404 without
+    revealing anything (no ID enumeration in the single-tenant demo)."""
+    with _make_client(tmp_path) as client:
+        headers = {"X-Demo-Actor": "demo-approver"}
+        response = client.get(
+            "/api/v1/observatory/flight-recorder?task_id=does-not-exist", headers=headers
+        )
+        assert response.status_code == 404
+
+
+def test_flight_recorder_marks_single_tenant(tmp_path):
+    """The authz model must be explicit: SINGLE_TENANT_DEMO_ONLY, not a
+    claim of production multi-tenant isolation."""
+    with _make_client(tmp_path) as client:
+        headers = {"X-Demo-Actor": "demo-approver"}
+        body = client.get("/api/v1/observatory/flight-recorder", headers=headers).json()
+        assert body["authz_model"] == "SINGLE_TENANT_DEMO_ONLY"
+        assert "NOT IMPLEMENTED" in body["note"]
+
+
+def test_production_auth_ignores_demo_header(tmp_path):
+    """0.2: with auth_enabled=True (production-ish config), the demo header
+    must NOT grant access — it is not a real login credential."""
+    with _make_client(tmp_path, auth_enabled=True, demo_header="X-Demo-Actor") as client:
+        headers = {"X-Demo-Actor": "demo-approver"}
+        for path in ("/api/v1/observatory/flight-recorder", "/api/v1/observatory/approval-inspector"):
+            response = client.get(path, headers=headers)
+            assert response.status_code == 401
+            assert response.json()["detail"]["reason_code"] == "AUTH_REQUIRED"
+
+
+def test_random_header_cannot_forge_principal(tmp_path):
+    """A random header value must never forge a principal (allowlist)."""
+    with _make_client(tmp_path) as client:
+        response = client.get(
+            "/api/v1/observatory/flight-recorder",
+            headers={"X-Demo-Actor": "attacker"},
+        )
+        assert response.status_code == 401
+
+
+def test_public_artifacts_contain_no_credentials(tmp_path):
+    """0.3: the public artifact endpoints must not leak credentials,
+    supplier secrets, or real approver identities."""
+    with _make_client(tmp_path) as client:
+        for path in (
+            "/api/v1/observatory/chaos-lab",
+            "/api/v1/observatory/optimization-comparison",
+            "/api/v1/observatory/experiment-lab",
+        ):
+            body = client.get(path).json()
+            s = json.dumps(body).lower()
+            for secret in ("password", "api_key", "secret", "credential", "authorization: bearer"):
+                assert secret not in s, f"{path} leaked {secret}"

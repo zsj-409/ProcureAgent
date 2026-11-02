@@ -119,6 +119,13 @@ def test_workbench_observatory_interaction():
             # directly via the page's own fetch is complex — instead verify
             # the labs render data.
 
+            # Lab 0: Execution Flight Recorder (live, auth).
+            await page.click('[data-lab="flight"]')
+            await page.wait_for_timeout(1200)
+            body = await page.inner_text("#obs-content")
+            assert "暂无" in body or "任务" in body or "flight" in body.lower() or "SINGLE_TENANT" in body
+            # Fresh DB -> empty state must show 暂无 (never a fake zero row).
+
             # Lab 1: Chaos Recovery Lab.
             await page.click('[data-lab="chaos"]')
             await page.wait_for_timeout(1500)

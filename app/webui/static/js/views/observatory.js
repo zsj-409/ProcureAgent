@@ -12,6 +12,12 @@ async function api(path) {
 
 const LABS = [
   {
+    id: "flight",
+    label: "Execution Flight Recorder",
+    desc: "每任务真实执行步骤（live，需认证）",
+    path: "flight-recorder",
+  },
+  {
     id: "chaos",
     label: "Chaos Recovery Lab",
     desc: "真实浏览器故障注入结果（Phase 4）",
@@ -41,7 +47,16 @@ function renderLabContent(el, lab, body) {
   const boundary = body.honest_boundary
     ? `<div class="obs-boundary">边界：${esc(body.honest_boundary)}</div>`
     : "";
-  if (lab.id === "chaos") {
+  if (lab.id === "flight") {
+    const flights = body.flights || [];
+    const table = flights.length
+      ? "<table><tr><th>task</th><th>status</th><th>step</th><th>created</th></tr>"
+        + flights.map((f) => `<tr><td>${esc(f.task_id)}</td><td>${esc(f.status)}</td><td>${esc(f.current_step)}</td><td>${esc(f.created_at)}</td></tr>`).join("")
+        + "</table>"
+      : "<p class='missing'>暂无任务轨迹（空状态，非零结果）</p>";
+    const authz = body.authz_model ? `<div class="obs-boundary">授权模型：${esc(body.authz_model)}（单租户 demo；多租户对象级隔离 NOT IMPLEMENTED）</div>` : "";
+    el.innerHTML = authz + table;
+  } else if (lab.id === "chaos") {
     const rows = body.data?.per_case || [];
     const table = rows.length
       ? "<table><tr><th>case</th><th>fault</th><th>verified</th><th>recovery</th><th>containment</th></tr>"
