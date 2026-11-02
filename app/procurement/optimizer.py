@@ -33,6 +33,7 @@ Feasibility classification (Task: 库存不足必须区分):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -114,11 +115,19 @@ class ProcurementOptimizer:
 
         if problem.quantity <= 0:
             raise ValidationError("quantity must be positive")
+        now = datetime.now(UTC)
         quotes = [q for q in problem.quotes if q.is_comparable()]
         if not quotes:
             return AllocationResult(
                 feasibility=Feasibility.INFEASIBLE,
                 infeasible_reason="no comparable quotes (FX missing/stale)",
+            )
+        # Expired quotes cannot be allocated (Phase 6: quote validity gate).
+        quotes = [q for q in quotes if q.quote_valid_until is None or q.quote_valid_until > now]
+        if not quotes:
+            return AllocationResult(
+                feasibility=Feasibility.INFEASIBLE,
+                infeasible_reason="all quotes expired",
             )
         # Admission whitelist.
         if problem.allowed_suppliers is not None:

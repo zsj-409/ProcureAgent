@@ -1,0 +1,105 @@
+{
+  "violations": [
+    {
+      "world": "world-split_cap-1",
+      "method": "greedy",
+      "violations": "split_count_exceeded:3>2"
+    },
+    {
+      "world": "world-split_cap-1",
+      "method": "cheapest",
+      "violations": "split_count_exceeded:3>2"
+    },
+    {
+      "world": "world-split_cap-2",
+      "method": "greedy",
+      "violations": "split_count_exceeded:3>2"
+    },
+    {
+      "world": "world-split_cap-2",
+      "method": "cheapest",
+      "violations": "split_count_exceeded:3>2"
+    },
+    {
+      "world": "world-delivery_conflict-1",
+      "method": "cheapest",
+      "violations": "line_deadline_exceeded:s2"
+    },
+    {
+      "world": "world-delivery_conflict-2",
+      "method": "cheapest",
+      "violations": "line_deadline_exceeded:s2"
+    },
+    {
+      "world": "world-allowlist-1",
+      "method": "cheapest",
+      "violations": "line_not_admitted:s2"
+    },
+    {
+      "world": "world-allowlist-2",
+      "method": "cheapest",
+      "violations": "line_not_admitted:s2"
+    },
+    {
+      "world": "world-expired_quote-1",
+      "method": "greedy",
+      "violations": "line_quote_expired:s1"
+    },
+    {
+      "world": "world-expired_quote-1",
+      "method": "cheapest",
+      "violations": "line_quote_expired:s1"
+    },
+    {
+      "world": "world-expired_quote-2",
+      "method": "greedy",
+      "violations": "line_quote_expired:s1"
+    },
+    {
+      "world": "world-expired_quote-2",
+      "method": "cheapest",
+      "violations": "line_quote_expired:s1"
+    },
+    {
+      "world": "world-share_limit-1",
+      "method": "greedy",
+      "violations": "line_share_cap_exceeded:s1"
+    },
+    {
+      "world": "world-share_limit-1",
+      "method": "cheapest",
+      "violations": "line_share_cap_exceeded:s1"
+    },
+    {
+      "world": "world-share_limit-2",
+      "method": "greedy",
+      "violations": "line_share_cap_exceeded:s1"
+    },
+    {
+      "world": "world-share_limit-2",
+      "method": "cheapest",
+      "violations": "line_share_cap_exceeded:s1"
+    },
+    {
+      "world": "world-mixed_constraints-1",
+      "method": "greedy",
+      "violations": "hard_budget_exceeded:840.00>800"
+    },
+    {
+      "world": "world-mixed_constraints-1",
+      "method": "cheapest",
+      "violations": "line_deadline_exceeded:s2"
+    },
+    {
+      "world": "world-mixed_constraints-2",
+      "method": "greedy",
+      "violations": "hard_budget_exceeded:840.00>800"
+    },
+    {
+      "world": "world-mixed_constraints-2",
+      "method": "cheapest",
+      "violations": "line_deadline_exceeded:s2"
+    }
+  ],
+  "count": 20
+}

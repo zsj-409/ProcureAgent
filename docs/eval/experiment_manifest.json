@@ -1,0 +1,36 @@
+{
+  "phase": 6,
+  "commit": "B",
+  "date": "2026-11-02T01:15:24.317208+00:00",
+  "evaluator_version": "v1",
+  "solver": "PuLP 3.3.2 / CBC",
+  "oracle": "exhaustive (≤4 suppliers, ≤12 units)",
+  "metrics": [
+    "greedy",
+    "cheapest",
+    "optimizer",
+    "oracle"
+  ],
+  "splits": {
+    "DEV": [
+      "unconstrained",
+      "single_supplier_shortage",
+      "multi_supplier_joint",
+      "split_cap"
+    ],
+    "CONFIRMATION": [
+      "tight_budget",
+      "freight_tax",
+      "delivery_conflict",
+      "allowlist"
+    ],
+    "TEST": [
+      "fx_failure",
+      "expired_quote",
+      "share_limit",
+      "fully_infeasible",
+      "partial_confirm",
+      "mixed_constraints"
+    ]
+  }
+}

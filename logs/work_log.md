@@ -209,6 +209,37 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   `docs/experiments/PHASE5_OPTIMIZATION_REPORT.md`；产物 optimization_comparison.csv /
   optimization_benchmark.json。
 
+## Phase 6（进行中，2026-11-02）
+
+### Task 0 — Phase 5 正确性审查（3 个 P1，已修复）
+- **0.1 BIG_M 词典序不可靠** → 严格两阶段（阶段1 最大化覆盖，阶段2 固定覆盖最小化成本）。
+- **0.2 float 系数无 Decimal 复核** → `_decimal_recheck`（预算容差 0.005、整数/库存/时限/分单/占比复核，
+  违反 → INVALID）。
+- **0.3 非最优误判 INFEASIBLE** → 新增 SOLVER_UNRESOLVED；FEASIBLE 未证明最优 → 返回分配 +
+  optimality_proven=False。
+- 审计：`docs/experiments/PHASE6_PRECONDITION_AUDIT.md`。
+
+### Commit A `579aac8` — Evaluation Correctness（226 passed）
+- `app/procurement/verifier.py`：Independent Constraint Verifier（独立重算全部硬约束，
+  reason_code 违规，FULLY/PARTIAL/INFEASIBLE/INVALID/SOLVER_UNRESOLVED 分类）。
+- `app/procurement/oracle.py`：SmallWorldOracle（穷举 ≤4 供应商 ≤12 数量，词典序最优，
+  不调 PuLP）。
+- 21 测试：两阶段覆盖优先（价格差 500×/运费 1000 仍全覆盖）、预算边界精确、Oracle=Optimizer
+  一致性（129.00 等）、验证器捕获过期/不可比较/库存/预算违规。
+
+### Commit B — Reproducible Benchmark（本次，235 passed）
+- `tests/eval/procurement_world.py`：14 场景族 × 2 seeds = 28 worlds，DEV/CONFIRMATION/TEST
+  划分，snapshot_hash（报价有效性按过期布尔而非时间戳）、reset() 确定性。
+- `tests/eval/procurement_adapters.py`：统一 AllocationCandidate（A Greedy / B Cheapest /
+  C Optimizer / D Oracle），独立验证器复核。
+- `tests/eval/procurement_benchmark.py`：指标注册表（分子/分母）+ 配对比较（仅双方 FULLY 才算
+  成本节省）+ 机器产物。
+- **修复 optimizer 过期报价 bug**：optimize() 过滤 quote_valid_until 过期报价
+  （此前会选过期报价 → INVALID，现 INFEASIBLE）。
+- **Benchmark 结果（28 worlds）**：Greedy full 14/28 violation 8/28；Cheapest full 10/28
+  violation 12/28；**Optimizer full 18/28 violation 0/28**；Oracle（10 小世界）violation 0/10。
+  联合可行 n=14：Optimizer 平均省 2.67%。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）
