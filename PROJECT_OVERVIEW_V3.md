@@ -72,6 +72,15 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
   与安全验证；C（LLM mock）21 次调用无成功率增益。真实 LLM REAL_LLM_NOT_RUN。
 - Phase 4 Gate 18/18 通过。
 
+## Phase 5 完成（2026-11-01，205 passed）
+
+- **Commit A `66402f3`**：受约束采购优化器（整数规划/CBC）最小化 Total Landed Cost，
+  约束：数量守恒、库存、准入、硬预算、交付时限、分单上限、供应商占比、税费/运费、统一币种；
+  可行性三分类（FULLY/PARTIAL/INFEASIBLE）；18 测试。
+- Baseline 对比（7 场景）：greedy 违反分单上限/部分覆盖却报推荐，cheapest 违反时限；
+  optimizer 全部尊重约束。简单无约束场景三者一致（诚实边界）。
+- 修复 fx 测试夹具时间脆弱性（as_of 固定日期 → now-1h）。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行
