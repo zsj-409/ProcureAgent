@@ -81,6 +81,18 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
   optimizer 全部尊重约束。简单无约束场景三者一致（诚实边界）。
 - 修复 fx 测试夹具时间脆弱性（as_of 固定日期 → now-1h）。
 
+## Phase 6 完成（2026-11-02，248 passed）
+
+- **Commit A `579aac8`**：两阶段词典序（覆盖优先，无 BIG_M）、Decimal 复核（预算容差 0.005）、
+  SOLVER_UNRESOLVED 状态；Independent Constraint Verifier + SmallWorldOracle（穷举 ≤4 供应商）。
+- **Commit B `51e0f85`**：28 worlds 注册表（14 族 × 2 seeds，DEV/CONFIRMATION/TEST）、
+  统一 Adapters A/B/C/D、指标注册表、配对比较；修复 optimizer 过期报价 bug。
+- **Commit C**：安全回归 13 测试、Solver scaling（10→80 供应商 0.047→0.094s）、
+  配对 Bootstrap（n=14，节省 2.671%，CI [0.62, 5.16]）、失败案例分析。
+- **Benchmark 结论**：Optimizer full 18/28、violation 0/28（Greedy 8/28、Cheapest 12/28）；
+  Oracle 0 违反验证 CBC 正确。Phase 6 Gate 18/18 通过；Optimizer 可作可选路径，
+  Greedy 仍默认。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行

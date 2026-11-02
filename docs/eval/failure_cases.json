@@ -1,1 +1,201 @@
-[]
+{
+  "greedy:PARTIAL_FEASIBLE": {
+    "n": 4,
+    "families": [
+      "partial_confirm",
+      "single_supplier_shortage"
+    ],
+    "examples": [
+      {
+        "world": "world-single_supplier_shortage-1",
+        "detail": ""
+      },
+      {
+        "world": "world-single_supplier_shortage-2",
+        "detail": ""
+      },
+      {
+        "world": "world-partial_confirm-1",
+        "detail": ""
+      }
+    ]
+  },
+  "cheapest:PARTIAL_FEASIBLE": {
+    "n": 4,
+    "families": [
+      "partial_confirm",
+      "single_supplier_shortage"
+    ],
+    "examples": [
+      {
+        "world": "world-single_supplier_shortage-1",
+        "detail": ""
+      },
+      {
+        "world": "world-single_supplier_shortage-2",
+        "detail": ""
+      },
+      {
+        "world": "world-partial_confirm-1",
+        "detail": ""
+      }
+    ]
+  },
+  "optimizer:PARTIAL_FEASIBLE": {
+    "n": 8,
+    "families": [
+      "mixed_constraints",
+      "partial_confirm",
+      "single_supplier_shortage",
+      "split_cap"
+    ],
+    "examples": [
+      {
+        "world": "world-single_supplier_shortage-1",
+        "detail": "requested 10 but only 5 coverable within constraints (shortfall 5); needs re-confirmation — not auto-completed"
+      },
+      {
+        "world": "world-single_supplier_shortage-2",
+        "detail": "requested 10 but only 5 coverable within constraints (shortfall 5); needs re-confirmation — not auto-completed"
+      },
+      {
+        "world": "world-split_cap-1",
+        "detail": "requested 12 but only 10 coverable within constraints (shortfall 2); needs re-confirmation — not auto-completed"
+      }
+    ]
+  },
+  "oracle:PARTIAL_FEASIBLE": {
+    "n": 6,
+    "families": [
+      "partial_confirm",
+      "single_supplier_shortage",
+      "split_cap"
+    ],
+    "examples": [
+      {
+        "world": "world-single_supplier_shortage-1",
+        "detail": ""
+      },
+      {
+        "world": "world-single_supplier_shortage-2",
+        "detail": ""
+      },
+      {
+        "world": "world-split_cap-1",
+        "detail": ""
+      }
+    ]
+  },
+  "greedy:INVALID": {
+    "n": 8,
+    "families": [
+      "expired_quote",
+      "mixed_constraints",
+      "share_limit",
+      "split_cap"
+    ],
+    "examples": [
+      {
+        "world": "world-split_cap-1",
+        "detail": "split_count_exceeded:3>2"
+      },
+      {
+        "world": "world-split_cap-2",
+        "detail": "split_count_exceeded:3>2"
+      },
+      {
+        "world": "world-expired_quote-1",
+        "detail": "line_quote_expired:s1"
+      }
+    ]
+  },
+  "cheapest:INVALID": {
+    "n": 12,
+    "families": [
+      "allowlist",
+      "delivery_conflict",
+      "expired_quote",
+      "mixed_constraints",
+      "share_limit",
+      "split_cap"
+    ],
+    "examples": [
+      {
+        "world": "world-split_cap-1",
+        "detail": "split_count_exceeded:3>2"
+      },
+      {
+        "world": "world-split_cap-2",
+        "detail": "split_count_exceeded:3>2"
+      },
+      {
+        "world": "world-delivery_conflict-1",
+        "detail": "line_deadline_exceeded:s2"
+      }
+    ]
+  },
+  "greedy:INFEASIBLE": {
+    "n": 2,
+    "families": [
+      "fully_infeasible"
+    ],
+    "examples": [
+      {
+        "world": "world-fully_infeasible-1",
+        "detail": ""
+      },
+      {
+        "world": "world-fully_infeasible-2",
+        "detail": ""
+      }
+    ]
+  },
+  "cheapest:INFEASIBLE": {
+    "n": 2,
+    "families": [
+      "fully_infeasible"
+    ],
+    "examples": [
+      {
+        "world": "world-fully_infeasible-1",
+        "detail": ""
+      },
+      {
+        "world": "world-fully_infeasible-2",
+        "detail": ""
+      }
+    ]
+  },
+  "optimizer:INFEASIBLE": {
+    "n": 2,
+    "families": [
+      "fully_infeasible"
+    ],
+    "examples": [
+      {
+        "world": "world-fully_infeasible-1",
+        "detail": "no supplier has positive stock"
+      },
+      {
+        "world": "world-fully_infeasible-2",
+        "detail": "no supplier has positive stock"
+      }
+    ]
+  },
+  "oracle:INFEASIBLE": {
+    "n": 2,
+    "families": [
+      "fully_infeasible"
+    ],
+    "examples": [
+      {
+        "world": "world-fully_infeasible-1",
+        "detail": "oracle found no feasible allocation"
+      },
+      {
+        "world": "world-fully_infeasible-2",
+        "detail": "oracle found no feasible allocation"
+      }
+    ]
+  }
+}

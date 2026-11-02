@@ -240,6 +240,19 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   violation 12/28；**Optimizer full 18/28 violation 0/28**；Oracle（10 小世界）violation 0/10。
   联合可行 n=14：Optimizer 平均省 2.67%。
 
+### Commit C — Integration & Final Evaluation（本次，248 passed）
+- 安全回归 13 测试：预算边界（==/-0.01/+0.01）、FX 缺失/过期排除、固定运费改变最优、
+  solver timeout → SOLVER_UNRESOLVED、硬预算不可绕过、PARTIAL 永不自动 FULLY、
+  过期报价排除、工作流语义（FULLY→审批、PARTIAL→确认、INFEASIBLE→无结果）。
+- Solver scaling：10→80 供应商 0.047s→0.094s，无超时。
+- 统计分析：配对 Bootstrap n=14，平均节省 **2.671%，95% CI [0.621, 5.157]**；
+  失败案例（greedy INVALID 8、cheapest INVALID 12、optimizer INVALID 0）。
+- 文档：PROCUREMENT_EVALUATION_CONTRACT / GREEDY_VS_OPTIMIZER_REPORT /
+  PROCUREMENT_SAFETY_REGRESSION / PHASE6_FINAL_REPORT；
+  产物：solver_performance.json、paired_bootstrap.json、failure_cases.json 等。
+- **Phase 6 Gate 18/18 通过**：Optimizer 可作为可选（feature-flagged）业务路径，
+  Greedy 仍为默认，替换需后续集成决策。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）
