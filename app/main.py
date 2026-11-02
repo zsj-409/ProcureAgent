@@ -30,7 +30,7 @@ from .security.approval_guard import ApprovalGuard
 from .suppliers.base import SupplierRegistry
 
 
-def build_model_client(settings: Settings, trace: TraceRecorder) -> ModelClient | None:
+def build_model_client(settings: Settings, trace: TraceRecorder | None) -> ModelClient | None:
     """Build the optional model client. ``None`` means deterministic fallback."""
 
     if not settings.llm_api_key:

@@ -59,6 +59,16 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o-mini"
     llm_timeout_seconds: float = 30.0
 
+    # --- Phase 8 scoped real-LLM validation -------------------------------
+    # Explicit opt-in ONLY. Defaults are conservative: no key, no budget,
+    # no real API calls. A real request is only ever made when BOTH a key
+    # AND an explicit sandbox-only flag are set by the operator.
+    llm_sandbox_only: bool = False   # Phase 8: only mock/offline validation
+    llm_max_calls: int = 20          # hard cap per validation run
+    llm_max_tokens: int = 2000       # hard cap per call (best-effort)
+    llm_retry_limit: int = 1         # retries per call
+    llm_cost_budget_usd: float = 5.0 # hard budget for a Phase 8 run
+
     # Runtime execution budget.
     agent_max_steps: int = 20
     agent_max_attempts: int = 2
