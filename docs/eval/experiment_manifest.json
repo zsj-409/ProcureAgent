@@ -1,7 +1,7 @@
 {
   "phase": 6,
   "commit": "B",
-  "date": "2026-11-02T01:15:24.317208+00:00",
+  "date": "2026-11-02T01:35:29.024212+00:00",
   "evaluator_version": "v1",
   "solver": "PuLP 3.3.2 / CBC",
   "oracle": "exhaustive (≤4 suppliers, ≤12 units)",

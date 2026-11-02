@@ -5,8 +5,8 @@ world-single_supplier_shortage-1,single_supplier_shortage,PARTIAL_FEASIBLE,PARTI
 world-single_supplier_shortage-2,single_supplier_shortage,PARTIAL_FEASIBLE,PARTIAL_FEASIBLE,False,,5,5,50.00,50.00
 world-multi_supplier_joint-1,multi_supplier_joint,FULLY_FEASIBLE,FULLY_FEASIBLE,True,0.0,15,15,162.00,162.00
 world-multi_supplier_joint-2,multi_supplier_joint,FULLY_FEASIBLE,FULLY_FEASIBLE,True,0.0,15,15,162.00,162.00
-world-split_cap-1,split_cap,INVALID,PARTIAL_FEASIBLE,False,,12,10,129.00,105.00
-world-split_cap-2,split_cap,INVALID,PARTIAL_FEASIBLE,False,,12,10,129.00,105.00
+world-split_cap-1,split_cap,PARTIAL_FEASIBLE,PARTIAL_FEASIBLE,False,,10,10,105.00,105.00
+world-split_cap-2,split_cap,PARTIAL_FEASIBLE,PARTIAL_FEASIBLE,False,,10,10,105.00,105.00
 world-tight_budget-1,tight_budget,FULLY_FEASIBLE,FULLY_FEASIBLE,True,0.0,100,100,1000.00,1000.00
 world-tight_budget-2,tight_budget,FULLY_FEASIBLE,FULLY_FEASIBLE,True,0.0,100,100,1000.00,1000.00
 world-freight_tax-1,freight_tax,FULLY_FEASIBLE,FULLY_FEASIBLE,True,8.7,10,10,115.00,105.00

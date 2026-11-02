@@ -1,0 +1,10 @@
+{
+  "n_clusters": 7,
+  "n_pairs": 14,
+  "mean": 2.671,
+  "ci95": [
+    0.0,
+    6.4
+  ],
+  "note": "cluster bootstrap by family (preserves within-family correlation); n_clusters is the effective independent sample size"
+}

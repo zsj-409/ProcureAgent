@@ -253,6 +253,28 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
 - **Phase 6 Gate 18/18 通过**：Optimizer 可作为可选（feature-flagged）业务路径，
   Greedy 仍为默认，替换需后续集成决策。
 
+## Phase 7（进行中，2026-11-02）
+
+### Task 0 — Phase 6 Metrics Reconciliation（Gate 0 通过）
+- **勘误 1**：Phase 6 报告"真实合法 FULLY=6"表述错误——FULLY 分类已排除违规者，
+  正确表述为 Greedy 合法 FULLY 14/28 + 独立 INVALID 8。无重复扣除（验证器单一标签）。
+- **勘误 2**：普通 Bootstrap 忽略同族相关性 → 新增 **Cluster Bootstrap（按 family 整组重采样）**：
+  n_clusters=7，mean 2.671%，CI **[0.0, 6.4]**（下界含 0，节省不显著）——修正"CI 不含 0"的过度声明。
+- **修复公平性缺陷**：Greedy 分单上限硬编码 3，与 Optimizer 的 world.max_split_suppliers 不一致 →
+  `ProcurementScorer.score(max_split=...)` 可选参数，GreedyAdapter 传 world 上限。Greedy violation 8→6。
+- **冻结报价有效期**：world hash 用构造时冻结的 expired 标志（防运行时时钟翻转）。
+- 文档：`docs/experiments/PHASE6_METRIC_RECONCILIATION.md`（历史保留 + 勘误版本）。
+
+### Commit A — Benchmark & Policy Contract（本次，267 passed）
+- `app/runtime/recovery_policy.py`：统一 RecoveryObservation/RecoveryDecision +
+  **CostAwareRecoveryPolicy**（可解释成功率先验 × 分层成本 → 预算感知选层，分层尝试上限防循环，
+  硬预算/安全门禁不可绕过，LLM 默认禁用）。
+- `tests/eval/recovery_benchmark.py`：12 故障族 × 3 难度 × 多模板种子判别性基准，
+  独立恢复目标（recover_quote / safe_stop），DEV/CONFIRMATION/TEST 隔离。
+- 19 测试（策略 12 + 基准 7）：成功/安全停止/预算耗尽、SELECTOR→SEMANTIC、
+  DYNAMIC_DOM→REFRESH、分层上限升级、LLM 默认禁用、无隐藏真值泄漏。
+- 文档：`docs/recovery/PHASE7_BASELINE_AUDIT.md`、`RECOVERY_POLICY_CONTRACT.md`。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

@@ -47,11 +47,20 @@ class ProcurementWorld:
     env_version: str = "v1"
     split: str = "DEV"  # DEV / CONFIRMATION / TEST
     _initial_quotes: list[SupplierQuote] = field(default_factory=list, repr=False)
+    _expired_flags: dict[str, bool] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
         # Snapshot the initial quotes for deterministic reset().
         if not self._initial_quotes:
             self._initial_quotes = list(self.quotes)
+        # Freeze the expiry flags at construction time so the snapshot hash
+        # is stable across the world's lifetime (no runtime clock drift).
+        if not self._expired_flags:
+            now = datetime.now(UTC)
+            self._expired_flags = {
+                q.supplier_id: (q.quote_valid_until is not None and q.quote_valid_until < now)
+                for q in self.quotes
+            }
 
     def snapshot_hash(self) -> str:
         payload = {
@@ -74,12 +83,10 @@ class ProcurementWorld:
                     "currency": q.currency,
                     "stock": q.available_stock,
                     "delivery": q.delivery_days,
-                    # Validity as a boolean (expired or not), NOT the exact
-                    # timestamp — two worlds built a second apart must hash
-                    # identically if their business validity is the same.
-                    "expired": (
-                        q.quote_valid_until is not None and q.quote_valid_until < datetime.now(UTC)
-                    ),
+                    # Validity as a frozen boolean (expired or not), NOT the
+                    # exact timestamp — two worlds built a second apart must
+                    # hash identically if their business validity is the same.
+                    "expired": self._expired_flags.get(q.supplier_id, False),
                     "normalization": q.normalization_status,
                     "ref_price": str(q.normalized_unit_price_ref) if q.normalized_unit_price_ref else None,
                 }

@@ -28,12 +28,18 @@ class ProcurementScorer:
         quotes: list[SupplierQuote],
         quantity: int,
         preference: Preference = Preference.BALANCED,
+        max_split: int | None = None,
     ) -> ProcurementRecommendation:
         """Return the highest-scoring quote and a recommendation.
 
         Each component is normalized against the best value observed in the
         quote set, then multiplied by its weight. Stock is scored by coverage
         of the requested quantity.
+
+        ``max_split`` (Phase 7, Task 0): an explicit per-world split cap.
+        When provided it overrides the default 3 so every method in a
+        comparison sees the SAME hard constraint. Defaults to None → the
+        scorer's own ``max_split_lines()`` (legacy behavior preserved).
         """
 
         if not quotes:
@@ -104,7 +110,7 @@ class ProcurementScorer:
             estimated_total=estimated_total,
         )
         if best.quote.available_stock < quantity:
-            self._apply_split_award(recommendation, scored, quantity)
+            self._apply_split_award(recommendation, scored, quantity, max_split=max_split)
         return recommendation
 
     @staticmethod
@@ -118,6 +124,7 @@ class ProcurementScorer:
         recommendation: ProcurementRecommendation,
         scored: list[ScoredQuote],
         quantity: int,
+        max_split: int | None = None,
     ) -> None:
         """Deterministically split the order when stock cannot cover it.
 
@@ -125,8 +132,11 @@ class ProcurementScorer:
         supplier id for reproducibility); each supplier contributes up to its
         available stock; at most ``max_split_lines`` lines. Any unfulfillable
         remainder is reported as ``shortfall`` instead of being hidden.
+
+        ``max_split`` overrides the default cap (Phase 7, Task 0 fairness).
         """
 
+        split_cap = max_split if max_split is not None else self.max_split_lines()
         remaining = quantity
         lines: list[AwardLine] = []
         ordered = sorted(
@@ -134,7 +144,7 @@ class ProcurementScorer:
             key=lambda item: (-item.total_score, item.quote.unit_price, item.quote.supplier_id),
         )
         for item in ordered:
-            if remaining <= 0 or len(lines) >= self.max_split_lines():
+            if remaining <= 0 or len(lines) >= split_cap:
                 break
             take = min(item.quote.available_stock, remaining)
             if take <= 0:

@@ -125,7 +125,10 @@ class GreedyAdapter:
         problem = _world_to_problem(world)
         try:
             rec = ProcurementScorer().score(
-                world.quotes, world.quantity, Preference.BALANCED
+                world.quotes,
+                world.quantity,
+                Preference.BALANCED,
+                max_split=world.max_split_suppliers,
             )
         except Exception as exc:
             return AllocationCandidate(

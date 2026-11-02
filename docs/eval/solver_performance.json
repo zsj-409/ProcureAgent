@@ -3,28 +3,28 @@
     {
       "n_suppliers": 10,
       "quantity": 50,
-      "solve_time_s": 0.047,
+      "solve_time_s": 0.031,
       "feasibility": "FULLY_FEASIBLE",
       "covered": 50
     },
     {
       "n_suppliers": 20,
       "quantity": 100,
-      "solve_time_s": 0.062,
+      "solve_time_s": 0.047,
       "feasibility": "FULLY_FEASIBLE",
       "covered": 100
     },
     {
       "n_suppliers": 40,
       "quantity": 200,
-      "solve_time_s": 0.078,
+      "solve_time_s": 0.047,
       "feasibility": "FULLY_FEASIBLE",
       "covered": 200
     },
     {
       "n_suppliers": 80,
       "quantity": 400,
-      "solve_time_s": 0.094,
+      "solve_time_s": 0.093,
       "feasibility": "FULLY_FEASIBLE",
       "covered": 400
     }

@@ -2,17 +2,7 @@
   "violations": [
     {
       "world": "world-split_cap-1",
-      "method": "greedy",
-      "violations": "split_count_exceeded:3>2"
-    },
-    {
-      "world": "world-split_cap-1",
       "method": "cheapest",
-      "violations": "split_count_exceeded:3>2"
-    },
-    {
-      "world": "world-split_cap-2",
-      "method": "greedy",
       "violations": "split_count_exceeded:3>2"
     },
     {
@@ -101,5 +91,5 @@
       "violations": "line_deadline_exceeded:s2"
     }
   ],
-  "count": 20
+  "count": 18
 }

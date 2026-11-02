@@ -71,8 +71,7 @@ def solver_scaling() -> dict:
 
 
 def paired_bootstrap(result: dict, n_boot: int = 2000, seed: int = 42) -> dict:
-    """Bootstrap CI for the mean cost saving (optimizer vs greedy) on the
-    jointly-fully-feasible pairs."""
+    """Ordinary i.i.d. bootstrap (ignores family correlation)."""
 
     rng = random.Random(seed)
     savings = [
@@ -90,6 +89,46 @@ def paired_bootstrap(result: dict, n_boot: int = 2000, seed: int = 42) -> dict:
     lo = means[int(0.025 * n_boot)]
     hi = means[int(0.975 * n_boot)]
     return {"n": len(savings), "mean": round(sum(savings) / len(savings), 3), "ci95": [round(lo, 3), round(hi, 3)]}
+
+
+def cluster_bootstrap(result: dict, n_boot: int = 2000, seed: int = 42) -> dict:
+    """Cluster bootstrap: resample WHOLE families (not individual pairs).
+
+    The 2 seeds of one family share the same template and are correlated;
+    ordinary bootstrap overstates precision. Cluster bootstrap resamples
+    entire families with replacement, so the correlation structure is
+    preserved. This is the primary CI for family-level conclusions.
+    """
+
+    rng = random.Random(seed)
+    # Group jointly-fully-feasible pairs by family.
+    clusters: dict[str, list[float]] = {}
+    for p in result["paired_comparison"]:
+        if p["both_fully_feasible"] and p["cost_saving_pct_on_fully"] is not None:
+            clusters.setdefault(p["family"], []).append(p["cost_saving_pct_on_fully"])
+    families = list(clusters.keys())
+    if not families:
+        return {"n_clusters": 0, "n_pairs": 0, "mean": None, "ci95": None}
+    means = []
+    for _ in range(n_boot):
+        # Resample families with replacement, keep ALL their pairs.
+        sample = []
+        for _ in range(len(families)):
+            fam = rng.choice(families)
+            sample.extend(clusters[fam])
+        means.append(sum(sample) / len(sample))
+    means.sort()
+    lo = means[int(0.025 * n_boot)]
+    hi = means[int(0.975 * n_boot)]
+    n_pairs = sum(len(v) for v in clusters.values())
+    return {
+        "n_clusters": len(families),
+        "n_pairs": n_pairs,
+        "mean": round(sum(sum(v) for v in clusters.values()) / n_pairs, 3),
+        "ci95": [round(lo, 3), round(hi, 3)],
+        "note": "cluster bootstrap by family (preserves within-family correlation); "
+                "n_clusters is the effective independent sample size",
+    }
 
 
 def failure_analysis(result: dict) -> dict:
@@ -132,9 +171,13 @@ def main() -> None:
     # Full benchmark + statistics.
     result = run_benchmark()
     boot = paired_bootstrap(result)
+    cluster = cluster_bootstrap(result)
     (OUT / "paired_bootstrap.json").write_text(json.dumps(boot, indent=2), encoding="utf-8")
+    (OUT / "paired_cluster_bootstrap.json").write_text(json.dumps(cluster, indent=2), encoding="utf-8")
     print("\n=== Paired bootstrap (optimizer vs greedy, jointly fully) ===")
-    print(f"  n={boot['n']}, mean saving={boot['mean']}%, 95% CI={boot['ci95']}")
+    print(f"  ordinary: n={boot['n']}, mean saving={boot['mean']}%, 95% CI={boot['ci95']}")
+    print(f"  cluster (by family): n_clusters={cluster['n_clusters']}, n_pairs={cluster['n_pairs']}, "
+          f"mean={cluster['mean']}%, 95% CI={cluster['ci95']}")
 
     failures = failure_analysis(result)
     (OUT / "failure_cases.json").write_text(

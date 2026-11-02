@@ -1,9 +1,10 @@
 {
   "greedy:PARTIAL_FEASIBLE": {
-    "n": 4,
+    "n": 6,
     "families": [
       "partial_confirm",
-      "single_supplier_shortage"
+      "single_supplier_shortage",
+      "split_cap"
     ],
     "examples": [
       {
@@ -15,7 +16,7 @@
         "detail": ""
       },
       {
-        "world": "world-partial_confirm-1",
+        "world": "world-split_cap-1",
         "detail": ""
       }
     ]
@@ -86,29 +87,6 @@
       }
     ]
   },
-  "greedy:INVALID": {
-    "n": 8,
-    "families": [
-      "expired_quote",
-      "mixed_constraints",
-      "share_limit",
-      "split_cap"
-    ],
-    "examples": [
-      {
-        "world": "world-split_cap-1",
-        "detail": "split_count_exceeded:3>2"
-      },
-      {
-        "world": "world-split_cap-2",
-        "detail": "split_count_exceeded:3>2"
-      },
-      {
-        "world": "world-expired_quote-1",
-        "detail": "line_quote_expired:s1"
-      }
-    ]
-  },
   "cheapest:INVALID": {
     "n": 12,
     "families": [
@@ -131,6 +109,28 @@
       {
         "world": "world-delivery_conflict-1",
         "detail": "line_deadline_exceeded:s2"
+      }
+    ]
+  },
+  "greedy:INVALID": {
+    "n": 6,
+    "families": [
+      "expired_quote",
+      "mixed_constraints",
+      "share_limit"
+    ],
+    "examples": [
+      {
+        "world": "world-expired_quote-1",
+        "detail": "line_quote_expired:s1"
+      },
+      {
+        "world": "world-expired_quote-2",
+        "detail": "line_quote_expired:s1"
+      },
+      {
+        "world": "world-share_limit-1",
+        "detail": "line_share_cap_exceeded:s1"
       }
     ]
   },

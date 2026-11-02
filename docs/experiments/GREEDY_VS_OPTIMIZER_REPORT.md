@@ -17,17 +17,22 @@
 ## 2. What the optimizer's gain actually is
 
 1. **Feasibility improvement (the real story)**: the optimizer converts
-   4 worlds (greedy-fully-feasible 14 → optimizer 18) where greedy could
-   not legally fulfill — e.g. `mixed_constraints` (budget+deadline+split
-   together) and `share_limit`. Greedy's 14 "full" includes 8 INVALID
-   (constraint-violating) — those are NOT legal fulfillments.
+   worlds where greedy could not legally fulfill — e.g. `mixed_constraints`
+   (budget+deadline+split together), `share_limit`, `expired_quote`. Greedy
+   legally fulfills 14/28 (FULLY, 0 violations); its 8 INVALID candidates
+   (constraint-violating) are separate and NOT part of any success rate.
+   (See PHASE6_METRIC_RECONCILIATION.md — the earlier "14−8=6 legal" phrasing
+   was an error; FULLY already excludes violators.)
 2. **Constraint-violation reduction**: greedy violates 8/28 (expired quotes,
    share caps, split caps, mixed constraints); cheapest violates 12/28
    (deadline, allowlist, budget); optimizer violates 0/28.
 3. **Cost saving (honest, bounded)**: on the 14 worlds where BOTH methods
    are FULLY_FEASIBLE, the optimizer's mean landed-cost saving is
-   **2.67%, 95% CI [0.62%, 5.16%]** (paired bootstrap, n=14). This is the
-   ONLY legitimate cost claim — never across different coverage levels.
+   **2.67%**. Ordinary bootstrap CI [0.62%, 5.16%]; **cluster bootstrap
+   (by family, n_clusters=7) CI [0.0%, 6.4%]** — directionally positive but
+   NOT significant at the family-cluster level. See
+   PHASE6_METRIC_RECONCILIATION.md. This is the ONLY legitimate cost claim —
+   never across different coverage levels.
 4. **Cheapest is a trap**: lowest unit price → highest violation rate
    (12/28) because it ignores deadline/budget/split/allowlist.
 
