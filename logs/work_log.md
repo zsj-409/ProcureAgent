@@ -190,6 +190,25 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   action_safety_report.json、quote_extraction_accuracy.json、portal_failure_cases.json。
 - 文档：`docs/experiments/PORTAL_RECOVERY_ABLATION.md`、`PHASE4_FINAL_REPORT.md`。
 
+## Phase 5（进行中，2026-11-01）
+
+### Commit A — 受约束采购优化（本次）
+- `app/procurement/optimizer.py`：整数规划分配优化器（PuLP 3.3.2/CBC），最小化
+  Total Landed Cost，约束：数量守恒、库存、供应商准入、硬预算、交付时限、
+  最多分单供应商数、供应商占比、税费/运费、统一币种。
+- 可行性三分类：FULLY_FEASIBLE / PARTIAL_FEASIBLE（需重新确认，绝不自动完成）/
+  INFEASIBLE（明确原因）。低成本部分履约 ≠ 完整采购成功。
+- 新增 18 测试（tests/test_phase5_optimizer.py）。
+- 与 Baseline 对比（tests/eval/optimization_benchmark.py，7 场景）：
+  greedy 违反分单上限（3 家当 max=2）、many_suppliers 只覆盖 105/150 却报推荐；
+  cheapest-feasible 违反交付时限；optimizer 全部尊重约束并显式返回可行性。
+  简单无约束场景三者一致（诚实边界）。
+- **修复 fx 测试夹具时间脆弱性**：`as_of` 从固定日期改相对 now-1h（跨 24h 窗口
+  导致 FX_RATE_STALE 假失败）。
+- 文档：`docs/contracts/ALLOCATION_OPTIMIZER_SPEC.md`、
+  `docs/experiments/PHASE5_OPTIMIZATION_REPORT.md`；产物 optimization_comparison.csv /
+  optimization_benchmark.json。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

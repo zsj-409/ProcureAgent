@@ -1,0 +1,8 @@
+case,quantity,suppliers,budget,deadline,greedy_cost,greedy_covered,greedy_time_s,cheapest_cost,cheapest_covered,cheapest_time_s,optimizer_cost,optimizer_covered,optimizer_feasibility,optimizer_time_s,optimizer_solver,constraint_violations,greedy_optimal_gap
+single_cheapest,50,2,,,500,50,0.0,500.00,50,0.0,500.00,50,FULLY_FEASIBLE,0.14,Optimal,,0.0
+stock_scarcity_greedy_suboptimal,100,2,,,1040.00,100,0.0,1040.00,100,0.0,1040.00,100,FULLY_FEASIBLE,0.031,Optimal,,0.0
+budget_constrained,100,2,1050,,1000,100,0.0,1000.00,100,0.0,1000.00,100,FULLY_FEASIBLE,0.016,Optimal,,0.0
+deadline_constrained,40,2,,3,400,40,0.0,320.00,40,0.0,400.00,40,FULLY_FEASIBLE,0.031,Optimal,,0.0
+split_cap,25,3,,,270.00,25,0.0,270.00,25,0.0,210.00,20,PARTIAL_FEASIBLE,0.063,Optimal,,
+many_suppliers,150,8,,,1107.50,105,0.0,1625.00,150,0.0,1625.00,150,FULLY_FEASIBLE,0.031,Optimal,,
+deep_stock_split_cap,100,3,,,1000,100,0.0,1000.00,100,0.0,1000.00,100,FULLY_FEASIBLE,0.031,Optimal,,0.0

@@ -9,7 +9,7 @@ Covers the §3.3 boundary matrix:
 - raw-quote preservation vs normalized quote consistency
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -24,11 +24,13 @@ from app.procurement.scorer import ProcurementScorer
 # ---------------------------------------------------------------------------
 
 def _rate(source: str, target: str, rate: str, *, as_of: datetime | None = None) -> FxRate:
+    # as_of defaults to 1 hour ago (relative to the real clock) so the
+    # 24h validity window is never crossed by test runtime drift.
     return FxRate(
         source_currency=source,
         target_currency=target,
         rate=Decimal(rate),
-        as_of=as_of or datetime(2026, 11, 1, tzinfo=UTC),
+        as_of=as_of or (datetime.now(UTC) - timedelta(hours=1)),
         source="test-fixture",
         valid_for_hours=24,
     )
