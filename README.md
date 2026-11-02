@@ -225,6 +225,39 @@ It does not perform:
 * payments
 * automatic checkout
 
+## Offline Demo (finalization)
+
+Fully offline, reproducible demo — **no paid API calls, no purchases**.
+
+```bash
+# Demo config (isolated identity; NOT a real login):
+export PROCUREAGENT_AUTH_ENABLED=false
+export PROCUREAGENT_DEMO_IDENTITY_HEADER=X-Demo-Actor
+export PROCUREAGENT_WEB_ALLOW_LAUNCH=false
+python -m app.main            # or uvicorn app.main:app
+# → http://127.0.0.1:8000  (Workbench + Observatory, 5 labs)
+```
+
+Demo identity: header `X-Demo-Actor: demo-approver` only (others → 401).
+With `auth_enabled=true` the header is ignored (default deny).
+
+Tests:
+
+```bash
+.venv/Scripts/python -m pytest                 # full suite (>300)
+.venv/Scripts/python -m pytest tests/test_phase9_workbench_e2e.py  # real-browser Workbench
+.venv/Scripts/python -m ruff check app/ tests/
+```
+
+Demo materials: `docs/demo/DEMO_RUNBOOK.md`, `INTERVIEW_WALKTHROUGH_90S.md`,
+`INTERVIEW_WALKTHROUGH_5MIN.md`, `ARCHITECTURE_EXPLANATION.md`,
+`ENGINEERING_TRADEOFFS.md`, `PROJECT_CLAIMS_AND_EVIDENCE.md`.
+Screenshots (optional): `docs/demo/screenshots/`.
+
+Real-LLM validation harness (Phase 8): `app/eval/phase8_llm.py` +
+`app/eval/phase8_portal.py`. Default `REAL_LLM_NOT_RUN`; explicit opt-in
+required (key + `llm_sandbox_only=false`), budgets enforced.
+
 ## Production Quality Checks
 
 * Real LLM smoke test: `python scripts/llm_smoke_test.py` (requires user-configured `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL`).
