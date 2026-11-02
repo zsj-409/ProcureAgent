@@ -296,6 +296,20 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   产物：recovery_policy_results.json（120 案例）。
 - **Phase 7 Gate 14/14 通过**。
 
+## Phase 9 — Workbench & Experiment Observatory（2026-11-02，287 passed）
+
+- **Observatory API**（`app/api/observatory.py`，只读已提交产物，不重跑 benchmark）：
+  - Execution Flight Recorder（实时任务 trace）
+  - Chaos Recovery Lab（Phase 4 portal 故障结果）
+  - Approval & Policy Inspector（审批 + 版本绑定）
+  - Procurement Optimization（Phase 5/6 CBC 对比）
+  - Agent Experiment Lab（Phase 7 120 案例策略对照）
+  - 每个 Lab 标注诚实边界（n、饱和/负结果、REAL_LLM_NOT_RUN、cluster CI）
+- **前端**：`#/observatory` 路由 + tabbed Lab 视图 + 导航 + CSS。
+- 9 新测试（API 6 + 演示 3：未授权审批拒绝 401 无状态变更、artifact 真实数字、
+  7 个面试演示可复现）。
+- 文档：`docs/workbench/PHASE9_OBSERVATORY.md`。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

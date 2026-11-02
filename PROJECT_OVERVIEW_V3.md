@@ -105,6 +105,13 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
   成本差异真实（D 40 次观察 vs E/F 20+0 次）。E/F 等质低成本 → PROMOTE（收益仅成本）。
   Phase 7 Gate 14/14 通过。
 
+## Phase 9 完成（2026-11-02，287 passed）
+
+- **Experiment Observatory**（只读已提交产物）：Flight Recorder / Chaos Lab /
+  Approval Inspector / Optimization Comparison / Experiment Lab 5 个 Lab +
+  前端 `#/observatory` 视图。每个 Lab 标注诚实实验边界。
+- 9 新测试（API + 7 面试演示可复现）。Phase 1-7 无回归。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行

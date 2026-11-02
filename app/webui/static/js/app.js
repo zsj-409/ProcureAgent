@@ -6,6 +6,7 @@ import * as run from "./views/run.js";
 import * as tasks from "./views/tasks.js";
 import * as taskDetail from "./views/taskDetail.js";
 import * as suppliers from "./views/suppliers.js";
+import * as observatory from "./views/observatory.js";
 
 const routes = [
   { pattern: /^#\/$/, view: overview.render, nav: "#/" },
@@ -13,6 +14,7 @@ const routes = [
   { pattern: /^#\/tasks$/, view: tasks.render, nav: "#/tasks" },
   { pattern: /^#\/tasks\/([\w-]+)$/, view: taskDetail.render, nav: "#/tasks", params: (m) => ({ id: m[1] }) },
   { pattern: /^#\/suppliers$/, view: suppliers.render, nav: "#/suppliers" },
+  { pattern: /^#\/observatory$/, view: observatory.render, nav: "#/observatory" },
 ];
 
 const page = document.getElementById("page");

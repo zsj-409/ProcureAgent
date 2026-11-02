@@ -16,6 +16,7 @@ from .agent.runtime import ExecutionBudget, TaskRuntime
 from .agent.validator import ExecutionValidator, PlanValidator
 from .api.agent import router as agent_router
 from .api.approvals import router as approvals_router
+from .api.observatory import router as observatory_router
 from .api.tasks import router as tasks_router
 from .api.workbench import router as workbench_router
 from .executors.router import ExecutorRouter
@@ -138,6 +139,7 @@ def create_app(
     app.include_router(approvals_router, prefix="/api/v1/tasks")
     app.include_router(agent_router, prefix="/api/v1/agent")
     app.include_router(workbench_router, prefix="/api/v1")
+    app.include_router(observatory_router, prefix="/api/v1")
 
     @app.get("/health")
     async def health() -> dict[str, str]:
