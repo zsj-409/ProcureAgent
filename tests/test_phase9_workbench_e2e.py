@@ -150,11 +150,19 @@ def test_workbench_observatory_interaction():
             rows = await page.locator("#obs-content table tr").count()
             assert rows >= 3, f"experiment lab table rows = {rows}"
 
-            # Lab 4: Approval Inspector (live data, demo identity header).
+            # Lab 5: Approval Inspector (live data, demo identity header).
             await page.click('[data-lab="approvals"]')
             await page.wait_for_timeout(1200)
             body = await page.inner_text("#obs-content")
             assert "审批" in body or "暂无" in body
+
+            # Lab 6: EvalOps Release Gates (Phase 10) — must show the REAL
+            # REJECTED unsafe candidate (never an all-green board).
+            await page.click('[data-lab="evalops"]')
+            await page.wait_for_timeout(1500)
+            body = await page.inner_text("#obs-content")
+            assert "REJECTED" in body, "unsafe candidate must be shown as REJECTED"
+            assert "hard_budget_violation" in body, "failed gate must be visible"
 
             # Empty/error state: request a lab whose artifact is absent would
             # 404 — the JS must render an error message, not a fake zero.

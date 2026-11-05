@@ -392,7 +392,7 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
 - 产物：`agent_trace_manifest.json` + `cross_process_trace_results.json` +
   `agentops_metrics.json`。pytest **343 passed**。
 
-### Commit C `(pending)` — EvalOps CI Release Gates
+### Commit C `4ab41ca` — EvalOps CI Release Gates
 
 - **app/evalops/core.py**：ReleaseCandidate（git 真实版本）、20 门禁注册表
   （10 硬安全门禁 fail-closed）、ReleaseGateEngine（PASS/FAIL/
@@ -411,7 +411,10 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
 - 产物：release_candidate_manifest.json / release_gate_results.json /
   shadow_evaluation_results.json / promotion_history.json / rollback_history.json /
   security_regression_cases.json / phase10_execution_manifest.json。
-- pytest **365 passed**。
+- pytest **365 passed**（Commit C 后全量）。
+- **Task 24 浏览器验证**：test_phase9_workbench_e2e.py 扩展 Lab 6
+  EvalOps 视图（真实 Chromium 展示 REJECTED + hard_budget_violation），
+  1 passed in 10.5s。
 
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、

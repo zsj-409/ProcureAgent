@@ -2,8 +2,8 @@
 
 - **Date**: 2026-11-02
 - **Commits**: A `b28f21d` (MCP Gateway) · B `6b67016` (OTel AgentOps) ·
-  C (pending, EvalOps)
-- **pytest**: 343 + EvalOps tests (final count after Commit C)
+  C `4ab41ca` (EvalOps)
+- **pytest**: **365 passed**, ruff clean
 
 ## What was delivered
 
@@ -38,7 +38,7 @@
 | release gates | 20 (10 hard safety) |
 | unsafe candidate verdict | REJECTED (hard_budget_violation) |
 | shadow isolation | verified (candidate never mutates real state) |
-| pytest | TBD (after Commit C) |
+| pytest | 365 passed |
 | ruff | clean |
 
 ## Honest boundaries (unchanged from previous phases)
