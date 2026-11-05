@@ -14,7 +14,10 @@ PROMOTED → ROLLED_BACK (on incident)
 - Status transitions happen ONLY via `PromotionManager` methods:
   - `create` → DRAFT
   - `mark_evaluating` → EVALUATING
-  - `apply_gate_verdict` → QUALIFIED (no FAIL) or REJECTED (any FAIL)
+  - `apply_gate_results` → QUALIFIED (all PASS, no INSUFFICIENT_EVIDENCE,
+    at least one evaluated gate) or REJECTED (any FAIL / any
+    INSUFFICIENT_EVIDENCE / no evaluated gates) — derived from the ACTUAL
+    gate results, never a caller-supplied verdict string.
   - `promote` → PROMOTED (requires QUALIFIED, else ValueError)
   - `rollback` → ROLLED_BACK (records the reason/previous version)
 

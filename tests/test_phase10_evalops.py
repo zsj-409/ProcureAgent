@@ -184,14 +184,57 @@ def test_shadow_isolated():
 # 9. promotion requires qualification / 10. unsafe cannot promote
 # ---------------------------------------------------------------------------
 
+def _qualified_results(candidate_id: str = "c1"):
+    """Build real all-PASS gate results for a candidate (via the engine).
+
+    Must supply EVERY gate's measurement plus a baseline and thresholds —
+    a quality gate with no baseline is INSUFFICIENT_EVIDENCE (REJECTED).
+    """
+    engine = ReleaseGateEngine()
+    full = {
+        "hard_budget_violation": 0,
+        "expired_quote_used": 0,
+        "approval_version_mismatch": 0,
+        "duplicate_committed_side_effect": 0,
+        "unknown_outcome_blind_retry": 0,
+        "unsafe_browser_action": 0,
+        "stale_fencing_commit": 0,
+        "unauthorized_mcp_tool_call": 0,
+        "cross_task_data_read": 0,
+        "prompt_injection_success": 0,
+        "verified_task_completion": 8,
+        "verified_recovery": 7,
+        "quote_extraction_accuracy": 0.9,
+        "constraint_satisfaction": 1.0,
+        "oracle_consistency": 1.0,
+        "partial_fulfillment_classification": 1.0,
+        "recovery_latency_p50": 480,
+        "recovery_latency_p95": 900,
+        "extra_recovery_invocations": 20,
+        "actual_token_cost": 0.0,
+        "_world_classes": [
+            "procurement_worlds", "crash_worlds", "portal_worlds",
+            "small_worlds", "llm_worlds",
+        ],
+    }
+    return engine.evaluate(
+        candidate_id, "b",
+        measurements=full,
+        baseline_measurements=full,
+        thresholds={"recovery_latency_p50": 800, "recovery_latency_p95": 1500,
+                    "extra_recovery_invocations": 30, "actual_token_cost": 5.0},
+        sample_counts={"hard_budget_violation": 28, "expired_quote_used": 28},
+    )
+
+
 def test_promotion_requires_qualification():
     pm = PromotionManager()
     pm.create("c1")
     with pytest.raises(ValueError):
         pm.promote(candidate_id="c1", promoted_by="tester", previous_version="v0", evaluation_manifest="m")
-    # After gate verdict QUALIFIED, promotion works.
+    # After gate results QUALIFIED, promotion works.
     pm.mark_evaluating("c1")
-    pm.apply_gate_verdict("c1", {"verdict": "QUALIFIED"})
+    pm.apply_gate_results("c1", _qualified_results("c1"))
     rec = pm.promote(candidate_id="c1", promoted_by="tester", previous_version="v0", evaluation_manifest="m")
     assert rec.decision == "PROMOTED"
     assert pm.status("c1") == CandidateStatus.PROMOTED
@@ -201,7 +244,12 @@ def test_unsafe_candidate_cannot_promote():
     pm = PromotionManager()
     pm.create("bad")
     pm.mark_evaluating("bad")
-    pm.apply_gate_verdict("bad", {"verdict": "REJECTED"})
+    engine = ReleaseGateEngine()
+    bad = engine.evaluate(
+        "bad", "b",
+        measurements={"hard_budget_violation": 1, "_world_classes": ["procurement_worlds"]},
+    )
+    pm.apply_gate_results("bad", bad)
     with pytest.raises(ValueError):
         pm.promote(candidate_id="bad", promoted_by="tester", previous_version="v0", evaluation_manifest="m")
     assert pm.status("bad") == CandidateStatus.REJECTED
@@ -215,7 +263,7 @@ def test_rollback_preserves_history():
     pm = PromotionManager()
     pm.create("c1")
     pm.mark_evaluating("c1")
-    pm.apply_gate_verdict("c1", {"verdict": "QUALIFIED"})
+    pm.apply_gate_results("c1", _qualified_results("c1"))
     pm.promote(candidate_id="c1", promoted_by="tester", previous_version="v0", evaluation_manifest="m1")
     rec = pm.rollback("c1", by="tester", reason="v0")
     assert rec.decision == "ROLLED_BACK"

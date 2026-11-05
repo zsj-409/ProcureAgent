@@ -10,6 +10,7 @@
       "failed_gates": [
         "hard_budget_violation"
       ],
+      "insufficient_gates": [],
       "verdict": "REJECTED"
     },
     "gates": [
@@ -283,6 +284,7 @@
       "insufficient_evidence": 0,
       "not_applicable": 0,
       "failed_gates": [],
+      "insufficient_gates": [],
       "verdict": "QUALIFIED"
     },
     "gates": [

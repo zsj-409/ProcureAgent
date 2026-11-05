@@ -549,9 +549,28 @@ class ReleaseGateEngine:
 
 
 def gate_summary(results: list[ReleaseGateResult]) -> dict[str, Any]:
-    """Aggregate gate results: any FAIL → candidate REJECTED."""
+    """Aggregate gate results.
+
+    Verdict rules (fail-closed):
+    - ANY FAIL → REJECTED (safety or quality — no trade-off).
+    - Otherwise, ANY INSUFFICIENT_EVIDENCE → REJECTED (a gate that should
+      have run but has no data is NOT evidence of safety — promotion is
+      blocked).  NOT_APPLICABLE does not block.
+    - Only ALL-PASS (with at least one evaluated gate) → QUALIFIED.
+    """
     fails = [r for r in results if r.gate_status == GateStatus.FAIL]
     insufficient = [r for r in results if r.gate_status == GateStatus.INSUFFICIENT_EVIDENCE]
+    evaluated = [r for r in results if r.gate_status in (GateStatus.PASS, GateStatus.FAIL)]
+    if fails:
+        verdict = CandidateStatus.REJECTED.value
+    elif insufficient:
+        verdict = CandidateStatus.REJECTED.value
+    elif not evaluated:
+        # Zero gates actually evaluated (all NOT_APPLICABLE / empty): no
+        # evidence at all — never QUALIFIED.
+        verdict = CandidateStatus.REJECTED.value
+    else:
+        verdict = CandidateStatus.QUALIFIED.value
     return {
         "total": len(results),
         "pass": sum(1 for r in results if r.gate_status == GateStatus.PASS),
@@ -559,7 +578,8 @@ def gate_summary(results: list[ReleaseGateResult]) -> dict[str, Any]:
         "insufficient_evidence": len(insufficient),
         "not_applicable": sum(1 for r in results if r.gate_status == GateStatus.NOT_APPLICABLE),
         "failed_gates": [r.gate_name for r in fails],
-        "verdict": CandidateStatus.REJECTED.value if fails else CandidateStatus.QUALIFIED.value,
+        "insufficient_gates": [r.gate_name for r in insufficient],
+        "verdict": verdict,
     }
 
 
@@ -683,9 +703,15 @@ class PromotionManager:
     def mark_evaluating(self, candidate_id: str) -> None:
         self._status[candidate_id] = CandidateStatus.EVALUATING
 
-    def apply_gate_verdict(self, candidate_id: str, verdict: dict[str, Any]) -> None:
-        """Gate verdict decides QUALIFIED or REJECTED — never set directly."""
-        if verdict["verdict"] == "QUALIFIED":
+    def apply_gate_results(self, candidate_id: str, results: list[ReleaseGateResult]) -> None:
+        """Derive the candidate status from the ACTUAL gate results — never
+        trust a caller-supplied verdict string.
+
+        QUALIFIED requires: no FAIL, no INSUFFICIENT_EVIDENCE, and at least
+        one gate actually evaluated. Anything else → REJECTED.
+        """
+        summary = gate_summary(results)
+        if summary["verdict"] == CandidateStatus.QUALIFIED.value:
             self._status[candidate_id] = CandidateStatus.QUALIFIED
         else:
             self._status[candidate_id] = CandidateStatus.REJECTED

@@ -416,6 +416,33 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   EvalOps 视图（真实 Chromium 展示 REJECTED + hard_budget_violation），
   1 passed in 10.5s。
 
+### Phase 11A（2026-11-05）— EvalOps 正确性修复
+
+用户决定：先完成 11A 正确性修复，再 11B 真实安全退化检测，最后按凭据
+条件决定 11C。Phase 11 无独立任务书文件（composer-pastes 与 session 均
+无），按现有仓库状态自主审计修复。
+
+**三个 P0/P1 缺陷（先写复现测试 RED→修复 GREEN）：**
+
+1. **P0 gate_summary 把 INSUFFICIENT_EVIDENCE 当 PASS**：全 INSUFFICIENT
+   的候选 verdict=QUALIFIED 可 promote——违反"证据不足不是 PASS、阻塞
+   promotion"。修复：ANY FAIL → REJECTED；否则 ANY INSUFFICIENT →
+   REJECTED；零评估 gate（全 NOT_APPLICABLE/空）→ REJECTED；仅全 PASS →
+   QUALIFIED。gate_summary 增 insufficient_gates 键。
+2. **P1 apply_gate_verdict 信任调用方 verdict 字符串**：伪造
+   `{"verdict":"QUALIFIED"}` 可绕过 gate 引擎。移除该方法，换
+   `apply_gate_results(candidate_id, results)`——从真实 gate results 经
+   gate_summary 重算（调用方 3 处旧测试 + demo 2 处 + 文档 1 处同步改）。
+3. **P1 release_candidate_manifest.json 契约形状不一致**：demo 写嵌套
+   `{"unsafe":..,"safe":..}`，manifest() 是扁平 dict。修复为
+   `{"candidates":[manifest()...],"roles":{...}}`，与 manifest() 形状
+   一致（测试断言每个 entry 是扁平 manifest）。
+
+- 全量 **371 passed**（365+6 新增，11A 六个测试），ruff clean。
+- 测试：tests/test_phase11a_correctness.py（6 个，先 RED 后 GREEN）。
+- 产物重生成：release_candidate_manifest.json（新形状）、
+  release_gate_results.json（unsafe REJECTED / safe QUALIFIED 不变）。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

@@ -84,15 +84,16 @@ def run_unsafe_candidate_demo(out_dir: Path) -> dict:
     safe_summary = gate_summary(safe_results)
 
     # 4. Promotion attempt: unsafe must be REJECTED, safe can promote.
+    #    The manager derives the verdict from the ACTUAL gate results.
     pm = PromotionManager()
     pm.create(unsafe_candidate.candidate_id)
     pm.mark_evaluating(unsafe_candidate.candidate_id)
-    pm.apply_gate_verdict(unsafe_candidate.candidate_id, unsafe_summary)
+    pm.apply_gate_results(unsafe_candidate.candidate_id, unsafe_results)
     unsafe_status = pm.status(unsafe_candidate.candidate_id)
 
     pm.create(safe_baseline.candidate_id)
     pm.mark_evaluating(safe_baseline.candidate_id)
-    pm.apply_gate_verdict(safe_baseline.candidate_id, safe_summary)
+    pm.apply_gate_results(safe_baseline.candidate_id, safe_results)
     promotion_record = pm.promote(
         candidate_id=safe_baseline.candidate_id,
         promoted_by="evalops-demo",
@@ -101,9 +102,19 @@ def run_unsafe_candidate_demo(out_dir: Path) -> dict:
     )
 
     # 5. Write machine-readable artifacts.
+    #    release_candidate_manifest.json: flat manifest() dict per candidate
+    #    (the same shape ReleaseCandidate.manifest() returns) — a nested
+    #    {"unsafe":..., "safe":...} wrapper was a machine-readable contract
+    #    mismatch. (Phase 11A fix)
     release_candidate = {
-        "unsafe": unsafe_candidate.manifest(),
-        "safe": safe_baseline.manifest(),
+        "candidates": [
+            unsafe_candidate.manifest(),
+            safe_baseline.manifest(),
+        ],
+        "roles": {
+            unsafe_candidate.candidate_id: "unsafe-test-fixture",
+            safe_baseline.candidate_id: "baseline-safe",
+        },
     }
     (out_dir / "release_candidate_manifest.json").write_text(
         json.dumps(release_candidate, indent=2), encoding="utf-8"
