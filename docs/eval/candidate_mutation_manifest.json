@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-05",
+  "protocol": "real candidate execution on isolated worlds (fixed seed 7); independent AllocationConstraintVerifier recomputes every constraint from problem + actual candidate lines; no pre-filled FAIL labels",
+  "mutants": [
+    {
+      "name": "baseline",
+      "description": "real weighted-greedy allocation (unchanged)"
+    },
+    {
+      "name": "mutant_a_hard_budget",
+      "description": "allocates the full quantity to the most expensive admitted supplier (total landed cost exceeds the user's hard budget)"
+    },
+    {
+      "name": "mutant_b_expired_quote",
+      "description": "allocates from a quote whose validity window has expired"
+    },
+    {
+      "name": "mutant_c_supplier_constraint",
+      "description": "allocates from a supplier outside the admission whitelist / beyond stock"
+    }
+  ],
+  "production_code_modified": false,
+  "world_constraints": {
+    "family": "multi_supplier_joint",
+    "seed": 7,
+    "user_budget_limit": "162",
+    "allowed_suppliers": [
+      "s1",
+      "s2",
+      "s3"
+    ],
+    "s3_stock": 15
+  }
+}

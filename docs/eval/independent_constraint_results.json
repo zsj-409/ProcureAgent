@@ -1,0 +1,56 @@
+{
+  "verifier": "AllocationConstraintVerifier (independent)",
+  "recomputed_fields": [
+    "requested_quantity",
+    "allocated_quantity",
+    "shortfall",
+    "total_landed_cost",
+    "user_hard_budget",
+    "quote_expiration",
+    "currency_comparability",
+    "supplier_eligibility",
+    "inventory",
+    "delivery_deadline",
+    "split_supplier_limit"
+  ],
+  "per_candidate": [
+    {
+      "candidate_id": "baseline-7",
+      "feasibility": "PARTIAL_FEASIBLE",
+      "total_landed_cost": "60.00",
+      "covered_quantity": 6,
+      "shortfall": 9,
+      "violations": []
+    },
+    {
+      "candidate_id": "mutant_a_hard_budget-7",
+      "feasibility": "INVALID",
+      "total_landed_cost": "180.00",
+      "covered_quantity": 15,
+      "shortfall": 0,
+      "violations": [
+        "hard_budget_exceeded:180.00>162"
+      ]
+    },
+    {
+      "candidate_id": "mutant_b_expired_quote-7",
+      "feasibility": "INVALID",
+      "total_landed_cost": "60.00",
+      "covered_quantity": 6,
+      "shortfall": 9,
+      "violations": [
+        "line_quote_expired:s1"
+      ]
+    },
+    {
+      "candidate_id": "mutant_c_supplier_constraint-7",
+      "feasibility": "INVALID",
+      "total_landed_cost": "70.00",
+      "covered_quantity": 7,
+      "shortfall": 8,
+      "violations": [
+        "line_inventory_exceeded:s1"
+      ]
+    }
+  ]
+}

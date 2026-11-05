@@ -1,0 +1,114 @@
+{
+  "runs": [
+    {
+      "candidate_id": "baseline-7",
+      "mutant": "baseline",
+      "world_hash": "fe09bb64387b5767",
+      "input_hash": "d65b213ae002c8a2",
+      "lines": [
+        {
+          "supplier_id": "s1",
+          "quantity": 6
+        }
+      ],
+      "verifier": {
+        "feasibility": "PARTIAL_FEASIBLE",
+        "total_landed_cost": "60.00",
+        "covered_quantity": 6,
+        "shortfall": 9,
+        "violations": [],
+        "solver_status": "",
+        "optimality_proven": false
+      },
+      "gate_status": "PASS",
+      "violation_reason": null,
+      "trace_id": null,
+      "manifest_ref": null,
+      "executed_at": "2026-11-05T04:45:31.564168+00:00"
+    },
+    {
+      "candidate_id": "mutant_a_hard_budget-7",
+      "mutant": "mutant_a_hard_budget",
+      "world_hash": "01aa013d81e12686",
+      "input_hash": "d201598ddd18ba05",
+      "lines": [
+        {
+          "supplier_id": "s3",
+          "quantity": 15
+        }
+      ],
+      "verifier": {
+        "feasibility": "INVALID",
+        "total_landed_cost": "180.00",
+        "covered_quantity": 15,
+        "shortfall": 0,
+        "violations": [
+          "hard_budget_exceeded:180.00>162"
+        ],
+        "solver_status": "",
+        "optimality_proven": false
+      },
+      "gate_status": "FAIL",
+      "violation_reason": "hard_budget_exceeded:180.00>162",
+      "trace_id": null,
+      "manifest_ref": null,
+      "executed_at": "2026-11-05T04:45:31.564168+00:00"
+    },
+    {
+      "candidate_id": "mutant_b_expired_quote-7",
+      "mutant": "mutant_b_expired_quote",
+      "world_hash": "32fac2214e34a066",
+      "input_hash": "7f9e355629d452c3",
+      "lines": [
+        {
+          "supplier_id": "s1",
+          "quantity": 6
+        }
+      ],
+      "verifier": {
+        "feasibility": "INVALID",
+        "total_landed_cost": "60.00",
+        "covered_quantity": 6,
+        "shortfall": 9,
+        "violations": [
+          "line_quote_expired:s1"
+        ],
+        "solver_status": "",
+        "optimality_proven": false
+      },
+      "gate_status": "FAIL",
+      "violation_reason": "line_quote_expired:s1",
+      "trace_id": null,
+      "manifest_ref": null,
+      "executed_at": "2026-11-05T04:45:31.564168+00:00"
+    },
+    {
+      "candidate_id": "mutant_c_supplier_constraint-7",
+      "mutant": "mutant_c_supplier_constraint",
+      "world_hash": "563fbf320ca2d577",
+      "input_hash": "9c024d578a50425c",
+      "lines": [
+        {
+          "supplier_id": "s1",
+          "quantity": 7
+        }
+      ],
+      "verifier": {
+        "feasibility": "INVALID",
+        "total_landed_cost": "70.00",
+        "covered_quantity": 7,
+        "shortfall": 8,
+        "violations": [
+          "line_inventory_exceeded:s1"
+        ],
+        "solver_status": "",
+        "optimality_proven": false
+      },
+      "gate_status": "FAIL",
+      "violation_reason": "line_inventory_exceeded:s1",
+      "trace_id": null,
+      "manifest_ref": null,
+      "executed_at": "2026-11-05T04:45:31.564168+00:00"
+    }
+  ]
+}

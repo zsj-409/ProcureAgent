@@ -470,6 +470,39 @@ RATE_LIMITED、result-schema 异常分支未 close span。OTel 规范要求创�
 
 全量 **379 passed**（371+8），ruff clean。
 
+### Phase 11B（2026-11-05）— 真实安全退化检测与持久化发布治理
+
+任务书（pasted_content_2026-11-05_04-35-39-504_c46954.txt）：通过真实候选
+策略执行、独立约束验证、跨进程发布竞争和可信授权测试，证明不安全 Agent
+版本无法绕过 Release Gate 并成为当前有效版本。Commit A→B→C。
+
+#### Commit A — 真实候选安全退化检测
+
+**Task 0 基线审计**（docs/evalops/PHASE11B_BASELINE_AUDIT.md）关键发现：
+- ReleaseGateEngine 只消费外部 measurements，不执行 candidate——
+  unsafe_candidate_demo 是手工构造的演示，非真实候选执行。
+- PromotionManager 纯内存态（dict+list）——无持久化/CAS/Active Version。
+- MCP task_owner 默认 None（跳过 ownership 校验），identity 是纯 demo。
+
+**Candidate Mutation Harness**（app/evalops/mutation.py）：
+- baseline：真实 greedy 分配（s1:6+s2:6+s3:3=162）→ verifier PASS。
+- mutant_a（硬预算回归）：全量给最贵 s3×15=180 → hard_budget_exceeded
+  → FAIL。
+- mutant_b（过期报价回归）：s1 过期 1h → line_quote_expired → FAIL。
+- mutant_c（库存约束回归）：s1 分配 7>6 → line_inventory_exceeded → FAIL。
+- 独立世界（fixed seed 7，预算 162，白名单 s1+s2+s3，s3 stock 15）；
+  每次拒绝保存 input hash/candidate output/quote snapshot/verifier 结果/
+  violation reason/gate 结果。
+- AllocationConstraintVerifier 独立重算全部 11 项约束，不信任 candidate
+  预填 is_valid/feasible/verdict。
+- 生产 policy/guard/verifier 未被修改（变异仅测试 fixture）。
+
+产物 4 份：candidate_mutation_manifest.json / candidate_execution_results
+.json / independent_constraint_results.json / release_gate_decisions.json。
+文档：REAL_CANDIDATE_REGRESSION_SPEC.md。
+测试：tests/test_phase11b_mutation.py（8 个）。
+全量 **387 passed**（379+8），ruff clean。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

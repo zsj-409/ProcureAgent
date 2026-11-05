@@ -1,0 +1,29 @@
+{
+  "gate": "ReleaseGateEngine (fail-closed)",
+  "decisions": [
+    {
+      "candidate_id": "baseline-7",
+      "gate_status": "PASS",
+      "violation_reason": null,
+      "evidence_ref": "independent_constraint_results.json"
+    },
+    {
+      "candidate_id": "mutant_a_hard_budget-7",
+      "gate_status": "FAIL",
+      "violation_reason": "hard_budget_exceeded:180.00>162",
+      "evidence_ref": "independent_constraint_results.json"
+    },
+    {
+      "candidate_id": "mutant_b_expired_quote-7",
+      "gate_status": "FAIL",
+      "violation_reason": "line_quote_expired:s1",
+      "evidence_ref": "independent_constraint_results.json"
+    },
+    {
+      "candidate_id": "mutant_c_supplier_constraint-7",
+      "gate_status": "FAIL",
+      "violation_reason": "line_inventory_exceeded:s1",
+      "evidence_ref": "independent_constraint_results.json"
+    }
+  ]
+}
