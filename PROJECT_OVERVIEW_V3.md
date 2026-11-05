@@ -152,12 +152,16 @@ EvalOps 正确性修复（用户决定：先 11A 再 11B，最后按凭据决定
 - **Commit A `0604ad2`**：真实候选安全退化检测——Candidate Mutation
   Harness（baseline greedy + 3 mutants：hard-budget/expired-quote/
   inventory），独立 Verifier 重算全部约束，无预填 FAIL 标签。387 passed。
-- **Commit B**：Durable Promotion——SQLite 持久化 + BEGIN IMMEDIATE CAS
-  事务 + 跨进程竞争（2/4 worker 恰 1 赢家）+ crash 一致性 + rollback
+- **Commit B `bfc68fd`**：Durable Promotion——SQLite 持久化 + BEGIN IMMEDIATE
+  CAS 事务 + 跨进程竞争（2/4 worker 恰 1 赢家）+ crash 一致性 + rollback
   版本安全。404 passed。
+- **Commit C**：可信工具授权 + E2E 安全回归——TaskRecord.owner_id 真实
+  对象级授权（alice/bob 隔离、fail-closed、demo 不豁免）、Worker 身份
+  边界、单 manifest E2E 链路（mutant→verifier→gate REJECT→promotion
+  BLOCKED→OTel 4 span）、Observatory 2 新证据端点。414 passed。
 - 历史 benchmark 字节不变；无真实付款/付费 LLM。
 
-## 路线图
+## Phase 11B 验收（Task 10 全部 18 项 ✅）
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行
 - **Phase 2**：Durable Runtime（原子 Claim/Lease/Heartbeat/Checkpoint/过期扫描/崩溃恢复/Idempotency Key/Unknown Outcome）+ 故障注入（CrashPoint/FaultInjector）

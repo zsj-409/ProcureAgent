@@ -189,9 +189,10 @@ def create_app(
             registry=components["registry"],
             repository=components["repository"],
             guard=components["approval_guard"],
-            task_owner=lambda task_id: (
-                "demo-approver" if components["repository"].get(task_id) else None
-            ),
+            # Phase 11B: object-level authorization — the task's REAL owner.
+            # No hard-coded demo owner; unknown/missing owner denies by
+            # default (fail-closed).
+            task_owner=lambda task_id: components["repository"].get_owner(task_id),
         )
         mcp_asgi, mcp_session_manager = build_mcp_asgi_app(mcp_server, path="/mcp")
         # Phase 10: attach the OTel tracer to the gateway for tool spans.

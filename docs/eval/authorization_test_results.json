@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-05",
+  "identity_model": "SINGLE_TENANT_DEMO_ONLY (real per-task owner_id; no hard-coded demo owner; fail-closed on unknown)",
+  "scenarios": [
+    {
+      "scenario": "alice_reads_own_task",
+      "decision": "ALLOWED",
+      "reason": null,
+      "result_keys": [
+        "created_at",
+        "current_step",
+        "status",
+        "task_id",
+        "updated_at"
+      ]
+    },
+    {
+      "scenario": "alice_reads_bobs_task",
+      "decision": "DENIED",
+      "reason_code": "TASK_FORBIDDEN",
+      "http_status": 403
+    },
+    {
+      "scenario": "bob_reads_bobs_task",
+      "decision": "ALLOWED",
+      "reason": null,
+      "result_keys": [
+        "created_at",
+        "current_step",
+        "status",
+        "task_id",
+        "updated_at"
+      ]
+    },
+    {
+      "scenario": "alice_reads_ownerless_task",
+      "decision": "DENIED",
+      "reason_code": "TASK_NOT_FOUND",
+      "http_status": 404
+    },
+    {
+      "scenario": "demo_reads_others_task",
+      "decision": "DENIED",
+      "reason_code": "TASK_FORBIDDEN",
+      "http_status": 403
+    },
+    {
+      "scenario": "anyone_reads_missing_task",
+      "decision": "DENIED",
+      "reason_code": "TASK_NOT_FOUND",
+      "http_status": 404
+    }
+  ]
+}

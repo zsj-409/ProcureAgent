@@ -16,7 +16,6 @@ from pathlib import Path
 from app.evalops.core import ReleaseGateEngine
 from app.evalops.promotion import DurablePromotionManager
 
-
 _WORKER = r"""
 import json, sys, os
 sys.path.insert(0, os.environ.get("PA_REPO_ROOT", ""))

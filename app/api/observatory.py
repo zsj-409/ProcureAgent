@@ -303,3 +303,47 @@ async def evalops_promotion(request: Request) -> dict[str, Any]:
             "cannot promote. Rollback preserves the previous version binding."
         ),
     }
+
+
+@router.get("/observatory/evalops/mutation")
+async def evalops_mutation(request: Request) -> dict[str, Any]:
+    """Phase 11B: real candidate safety regression evidence — baseline PASS
+    vs hard-budget / expired-quote / inventory mutants FAIL, each with the
+    independent verifier's actual violation reasons."""
+
+    executions = _load("candidate_execution_results.json")
+    decisions = _load("release_gate_decisions.json")
+    if executions is None:
+        raise HTTPException(status_code=404, detail="candidate_execution_results.json missing")
+    return {
+        **_artifact_meta("candidate_execution_results.json"),
+        "executions": executions.get("runs", []),
+        "gate_decisions": decisions or {},
+        "honest_boundary": (
+            "FAIL comes from the independent verifier recomputing every "
+            "constraint on the REAL candidate output — never a pre-filled "
+            "label. Mutants are test-only fixtures; production policy is "
+            "untouched."
+        ),
+    }
+
+
+@router.get("/observatory/evalops/e2e")
+async def evalops_e2e(request: Request) -> dict[str, Any]:
+    """Phase 11B end-to-end security regression chain: one manifest from
+    real candidate execution → verifier → gate REJECT → promotion blocked
+    → active version unchanged, with OTel span outcomes."""
+
+    manifest = _load("phase11b_execution_manifest.json")
+    if manifest is None:
+        raise HTTPException(status_code=404, detail="phase11b_execution_manifest.json missing")
+    return {
+        **_artifact_meta("phase11b_execution_manifest.json"),
+        "data": manifest,
+        "honest_boundary": (
+            "one shared manifest links every id (candidate, input hash, "
+            "world hash, gate decision, audit, OTel spans) — no hand-assembled "
+            "PASS/FAIL JSONs. Controlled experiment, not a production safety "
+            "proof."
+        ),
+    }

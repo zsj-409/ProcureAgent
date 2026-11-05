@@ -146,9 +146,11 @@ TASK_STATUS_OUTPUT: dict[str, Any] = {
     "properties": {
         "task_id": {"type": "string"},
         "status": {"type": "string"},
-        "current_step": {"type": "string", "default": None},
-        "created_at": {"type": "string", "default": None},
-        "updated_at": {"type": "string", "default": None},
+        # current_step / timestamps are null for fresh PENDING tasks — they
+        # must be allowed to be null (Phase 11B schema correctness fix).
+        "current_step": {"type": ["string", "null"]},
+        "created_at": {"type": ["string", "null"]},
+        "updated_at": {"type": ["string", "null"]},
     },
     "required": ["task_id", "status"],
 }

@@ -184,7 +184,7 @@ class ToolPolicyGateway:
                 )
                 _close_span("DENIED", 'TASK_NOT_FOUND')
                 raise ToolPolicyError("TASK_NOT_FOUND", "task does not exist", http_status=404)
-            if owner != principal.id and not (principal.is_demo and owner == "demo"):
+            if owner != principal.id:
                 self._audit(
                     "DENIED",
                     tool_name,

@@ -532,6 +532,40 @@ RATE_LIMITED、result-schema 异常分支未 close span。OTel 规范要求创�
 - 测试：tests/test_phase11b_promotion.py（17 个，含 4 跨进程竞争 + 2 crash）。
 全量 **404 passed**（387+17），ruff clean。
 
+#### Commit C — 可信工具授权与端到端安全回归
+
+**Task 5/6**：对象级授权 + Worker 身份边界 + E2E 完整链路。
+
+- **TaskRecord 加 owner_id 列** + repository.create(owner_id=...) +
+  repository.get_owner(task_id)；main.py 的 MCP task_owner 从硬编码
+  "demo-approver" 改为真实 owner（原来所有存在的任务都"属于"demo——
+  ownership 检查形同虚设）。
+- **policy.py 去掉 demo 特例**（`owner == "demo"` 放行删除）：demo
+  principal 也按 owner==id 判定。
+- **TASK_STATUS_OUTPUT schema 修复**：current_step/created_at/updated_at
+  允许 null（PENDING 新任务 current_step 为 None 是合法的，原 schema
+  要求 string 导致 result-schema 拒绝）。
+- **对象级授权验证**（真实 repository + 真实 handlers）：
+  - alice 读自己任务 ALLOWED；读 bob 任务 DENIED(TASK_FORBIDDEN)。
+  - 无 owner 任务 DENIED（fail-closed）。
+  - demo principal 读别人任务 DENIED（demo 不豁免）。
+  - 不存在任务 404（不泄漏存在性）。
+- **Worker 身份边界**：resume(task_id) 只接受 task id（无请求体 role/
+  header 注入）；demo header 非长期后台身份。
+- **E2E 安全回归 demo**（phase11b_e2e_demo.py）：单 manifest 贯穿
+  真实 mutant 执行 → 独立 verifier INVALID → gate REJECTED →
+  Durable Promotion BLOCKED（active 保持 baseline-7）→ OTel 4 span
+  （candidate_execution=FAIL/independent_verification=INVALID/
+  release_gate=REJECTED/promotion_rejection=BLOCKED）。
+- **Observatory 2 新端点**：evalops/mutation（真实变异证据表）+
+  evalops/e2e（单 manifest 链路）。
+- 产物：authorization_test_results.json + phase11b_execution_manifest.json。
+- 文档 4 份：TOOL_AUTHORIZATION_BOUNDARY.md / PHASE11B_FINAL_REPORT.md /
+  PHASE11B_SECURITY_REGRESSION_REPORT.md（+ 11A/11B 已提交的
+  PHASE11B_BASELINE_AUDIT/REAL_CANDIDATE_REGRESSION_SPEC/DURABLE_PROMOTION_SPEC）。
+- 测试：test_phase11b_authz_e2e.py（7）+ test_phase11b_observatory.py（3）。
+全量 **414 passed**（404+10），ruff clean，历史 benchmark 字节不变。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

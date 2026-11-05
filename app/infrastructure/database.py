@@ -43,6 +43,10 @@ class TaskRecord(Base):
     request_json: Mapped[str] = mapped_column(Text, default="{}")
     plan_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     recommendation_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Phase 11B: the principal who owns this task (for object-level
+    # authorization). NULL/absent on legacy rows → owner unknown → the MCP
+    # gateway denies by default (fail-closed).
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -193,7 +197,7 @@ class TaskRepository:
     def __init__(self, session_factory: sessionmaker):
         self._session_factory = session_factory
 
-    def create(self, task_id: str, request: ProcurementRequest) -> None:
+    def create(self, task_id: str, request: ProcurementRequest, *, owner_id: str | None = None) -> None:
         """Persist a new task in PENDING state."""
 
         now = _utcnow()
@@ -207,6 +211,7 @@ class TaskRepository:
                 partial_result=False,
                 request_json=request.model_dump_json(),
                 plan_json=None,
+                owner_id=owner_id,
                 created_at=now,
                 updated_at=now,
             )
@@ -218,6 +223,15 @@ class TaskRepository:
 
         with self._session_factory() as session:
             return session.get(TaskRecord, task_id)
+
+    def get_owner(self, task_id: str) -> str | None:
+        """Object-level authorization: the principal who owns a task, or
+        None when the task does not exist / has no owner (fail-closed)."""
+        with self._session_factory() as session:
+            row = session.get(TaskRecord, task_id)
+            if row is None:
+                return None
+            return row.owner_id
 
     def list_tasks(self, limit: int = 50) -> list[TaskRecord]:
         """Return the most recent task records, newest first."""
