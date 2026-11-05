@@ -96,6 +96,26 @@ def build_components(
     background.bind(orchestrator_ready)
     interpreter = ProcurementInterpreter(model)
     approval_guard = ApprovalGuard(settings)
+    # Phase 10: OpenTelemetry AgentOps handle (in-memory by default; OTLP
+    # optional). Exporter failure never breaks procurement tasks.
+    # NOTE: OTel forbids re-setting the global TracerProvider, so the handle
+    # is created ONCE per process and cached.
+    otel_handle = getattr(build_components, "_otel_handle", None)
+    if getattr(settings, "otel_enabled", True):
+        if otel_handle is None:
+            try:
+                from .observability.otel import setup_otel
+
+                otel_handle = setup_otel(
+                    settings,
+                    in_memory=not getattr(settings, "otel_export_enabled", False),
+                )
+                build_components._otel_handle = otel_handle  # type: ignore[attr-defined]
+            except Exception:
+                otel_handle = None
+    else:
+        otel_handle = None
+    orchestrator.otel_handle = otel_handle  # type: ignore[attr-defined]
     return {
         "repository": repository,
         "trace": trace,
@@ -105,6 +125,7 @@ def build_components(
         "registry": registry,
         "background": background,
         "approval_guard": approval_guard,
+        "otel_handle": otel_handle,
     }
 
 
@@ -173,10 +194,12 @@ def create_app(
             ),
         )
         mcp_asgi, mcp_session_manager = build_mcp_asgi_app(mcp_server, path="/mcp")
-        # Starlette Mount with path "/mcp" compiles to ^/mcp/(?P<path>.*)$
-        # (trailing slash REQUIRED), so bare POST /mcp falls through to the
-        # "/" static mount → 405. Mount at "/mcp/" — clients use the
-        # canonical "/mcp/" URL (mcp SDK streamable_http_client does).
+        # Phase 10: attach the OTel tracer to the gateway for tool spans.
+        gw = getattr(mcp_server, "_policy_gateway", None)
+        if gw is not None:
+            otel_h = components.get("otel_handle")
+            if otel_h and otel_h.get("tracer") is not None:
+                gw._tracer = otel_h["tracer"]  # type: ignore[attr-defined]
         app.mount("/mcp/", mcp_asgi, name="mcp")
         app.state.mcp_server = mcp_server
         app.state.mcp_session_manager = mcp_session_manager

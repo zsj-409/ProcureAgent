@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-02",
+  "task_id": "phase10-trace-demo",
+  "task_status": "FAILED",
+  "spans": [
+    {
+      "name": "ProcurementTask",
+      "trace_id": "8f1fc2db3e19bed37a568ed346839285",
+      "span_id": "9746dfad9f294a81",
+      "parent_id": null,
+      "attributes": {
+        "task_id": "phase10-trace-demo",
+        "stage": "ProcurementTask",
+        "worker_id": "orchestrator",
+        "lease_epoch": "None",
+        "plan_hash": "None",
+        "attempt_id": "None",
+        "logical_step_id": "None",
+        "outcome": "FAILED"
+      }
+    }
+  ]
+}

@@ -292,6 +292,22 @@ class ProcurementOrchestrator:
     async def run(self, task_id: str, request: ProcurementRequest) -> TaskState:
         """Run a new procurement task."""
 
+        # Phase 10: OpenTelemetry root span for the whole task.
+        otel = getattr(self, "otel_handle", None)
+        root_span = None
+        if otel is not None and otel.get("tracer") is not None:
+            try:
+                from ..observability.otel import end_span, start_task_span
+
+                root_span = start_task_span(
+                    otel["tracer"],
+                    task_id=task_id,
+                    stage="ProcurementTask",
+                    worker_id="orchestrator",
+                )
+            except Exception:
+                root_span = None
+
         now = datetime.now(UTC)
         state = TaskState(
             task_id=task_id,
@@ -320,10 +336,61 @@ class ProcurementOrchestrator:
         state.status = TaskStatus.COLLECTING
         state.current_step = "collect"
         self._save(state)
-        return await self._execute_plan(task_id, request, plan, state)
+        result = await self._execute_plan(task_id, request, plan, state)
+        # Phase 10: close the root span; persist the traceparent so a later
+        # crash + recovery attempt can inherit the same trace (W3C).
+        if root_span is not None:
+            try:
+                from ..observability.otel import end_span
+
+                end_span(root_span, outcome=str(result.status.value))
+                self.trace.record(
+                    task_id=task_id,
+                    step="otel",
+                    component="ProcurementOrchestrator",
+                    action="trace_root",
+                    status="SUCCESS",
+                    duration_ms=0,
+                    trace_id=f"{root_span.context.trace_id:032x}",
+                    span_id=f"{root_span.context.span_id:016x}",
+                )
+            except Exception:
+                pass
+        return result
 
     async def resume(self, task_id: str) -> TaskState:
         """Resume a FAILED task using the same task id and plan."""
+
+        # Phase 10: recover the previous attempt's traceparent (W3C) so the
+        # resumed run inherits the SAME trace across the crash.
+        otel = getattr(self, "otel_handle", None)
+        prev_traceparent = None
+        if otel is not None and otel.get("tracer") is not None:
+            try:
+                traces = self.repository.list_trace(task_id)
+                for t in reversed(traces):
+                    if getattr(t, "trace_id", None):
+                        prev_traceparent = (
+                            f"00-{t.trace_id}-{t.span_id or '0' * 16}-01"
+                        )
+                        break
+            except Exception:
+                prev_traceparent = None
+        resume_span = None
+        if otel is not None and otel.get("tracer") is not None:
+            try:
+                from ..observability.otel import end_span, start_task_span
+
+                resume_span = start_task_span(
+                    otel["tracer"],
+                    task_id=task_id,
+                    stage="ResumeAttempt",
+                    worker_id="orchestrator",
+                    lease_epoch=1,
+                    traceparent=prev_traceparent,
+                )
+            except Exception:
+                resume_span = None
 
         record = self.repository.get(task_id)
         if record is None:
@@ -362,7 +429,16 @@ class ProcurementOrchestrator:
             duration_ms=0,
         )
         self._save(state)
-        return await self._execute_plan(task_id, request, plan, state, resume=True)
+        result = await self._execute_plan(task_id, request, plan, state, resume=True)
+        # Phase 10: close the resume span.
+        if resume_span is not None:
+            try:
+                from ..observability.otel import end_span
+
+                end_span(resume_span, outcome=str(result.status.value))
+            except Exception:
+                pass
+        return result
 
     async def _execute_plan(
         self,

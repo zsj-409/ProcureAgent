@@ -23,6 +23,11 @@ class TraceEntry(BaseModel):
     model: str | None = None
     token_input: int | None = None
     token_output: int | None = None
+    # Phase 10: W3C trace context (Commit B).
+    trace_id: str | None = None
+    span_id: str | None = None
+    parent_span_id: str | None = None
+    lease_epoch: int | None = None
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -47,6 +52,10 @@ class TraceRecorder:
         model: str | None = None,
         token_input: int | None = None,
         token_output: int | None = None,
+        trace_id: str | None = None,
+        span_id: str | None = None,
+        parent_span_id: str | None = None,
+        lease_epoch: int | None = None,
     ) -> TraceEntry:
         """Record and log one trace entry."""
 
@@ -62,6 +71,10 @@ class TraceRecorder:
             model=model,
             token_input=token_input,
             token_output=token_output,
+            trace_id=trace_id,
+            span_id=span_id,
+            parent_span_id=parent_span_id,
+            lease_epoch=lease_epoch,
         )
         self._entries.append(entry)
         logger.info(
@@ -88,6 +101,10 @@ class TraceRecorder:
                     "model": model,
                     "token_input": token_input,
                     "token_output": token_output,
+                    "trace_id": trace_id,
+                    "span_id": span_id,
+                    "parent_span_id": parent_span_id,
+                    "lease_epoch": lease_epoch,
                 }
             )
         return entry

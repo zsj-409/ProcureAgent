@@ -1,0 +1,9 @@
+{
+  "date": "2026-11-02",
+  "method": "W3C traceparent persisted via TraceRecorder; resume inherits trace_id",
+  "test_evidence": "test_cross_process_traceparent_link / test_crash_recovery_shares_trace_id",
+  "crash_reclaim_same_trace": true,
+  "distinct_worker_spans": true,
+  "fencing_rejection_traceable": true,
+  "unknown_outcome_traceable": true
+}

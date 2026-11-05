@@ -112,15 +112,47 @@ class ToolPolicyGateway:
         principal = self.identity_resolver(context)
         task_id = arguments.get("task_id") if isinstance(arguments, dict) else None
 
+        # Phase 10: emit an OTel span for this tool invocation (best-effort;
+        # a missing tracer must never break the gate).
+        otel_span = None
+        tracer = getattr(self, "_tracer", None)
+        if tracer is not None:
+            try:
+                otel_span = tracer.start_span(
+                    f"tool:{tool_name}",
+                    attributes={
+                        "tool_name": tool_name,
+                        "tool_version": (
+                            get_contract(tool_name).tool_version
+                            if get_contract(tool_name)
+                            else "unknown"
+                        ),
+                    },
+                )
+            except Exception:
+                otel_span = None
+
+        def _close_span(decision: str, reason: str | None = None) -> None:
+            if otel_span is not None:
+                try:
+                    otel_span.set_attribute("decision", decision)
+                    if reason:
+                        otel_span.set_attribute("reason_code", reason)
+                    otel_span.end()
+                except Exception:
+                    pass
+
         # 1-2. identity
         if principal is None:
             self._audit("DENIED", tool_name, None, "AUTH_REQUIRED", task_id, event_input_hash, started)
+            _close_span("DENIED", 'AUTH_REQUIRED')
             raise ToolPolicyError("AUTH_REQUIRED", "unauthenticated tool call", http_status=401)
 
         # 3. registered tool
         contract = get_contract(tool_name)
         if contract is None:
             self._audit("DENIED", tool_name, principal.id, "UNKNOWN_TOOL", task_id, event_input_hash, started)
+            _close_span("DENIED", 'UNKNOWN_TOOL')
             raise ToolPolicyError("UNKNOWN_TOOL", f"tool '{tool_name}' is not registered", http_status=404)
 
         # 4. scope
@@ -134,6 +166,7 @@ class ToolPolicyGateway:
                 event_input_hash,
                 started,
             )
+            _close_span("DENIED", 'INSUFFICIENT_SCOPE')
             raise ToolPolicyError("INSUFFICIENT_SCOPE", f"principal lacks scope '{contract.required_scope}'")
 
         # 5. task ownership
@@ -149,6 +182,7 @@ class ToolPolicyGateway:
                     event_input_hash,
                     started,
                 )
+                _close_span("DENIED", 'TASK_NOT_FOUND')
                 raise ToolPolicyError("TASK_NOT_FOUND", "task does not exist", http_status=404)
             if owner != principal.id and not (principal.is_demo and owner == "demo"):
                 self._audit(
@@ -160,6 +194,7 @@ class ToolPolicyGateway:
                     event_input_hash,
                     started,
                 )
+                _close_span("DENIED", 'TASK_FORBIDDEN')
                 raise ToolPolicyError("TASK_FORBIDDEN", "principal has no access to this task")
 
         # 6. tenant boundary — single-tenant demo: enforced label only.
@@ -178,6 +213,7 @@ class ToolPolicyGateway:
                 event_input_hash,
                 started,
             )
+            _close_span("DENIED", 'MUTATION_NOT_ALLOWED')
             raise ToolPolicyError("MUTATION_NOT_ALLOWED", "only read-only tools are exposed by this gateway")
 
         # 8. schema
@@ -206,6 +242,7 @@ class ToolPolicyGateway:
         handler = self._handlers.get(tool_name)
         if handler is None:
             self._audit("DENIED", tool_name, principal.id, "NO_HANDLER", task_id, event_input_hash, started)
+            _close_span("DENIED", 'NO_HANDLER')
             raise ToolPolicyError("NO_HANDLER", f"no handler for tool '{tool_name}'")
         try:
             result = handler(arguments, principal, context)
@@ -213,12 +250,14 @@ class ToolPolicyGateway:
             raise
         except Exception as exc:
             self._audit("DENIED", tool_name, principal.id, "TOOL_ERROR", task_id, event_input_hash, started)
+            _close_span("DENIED", 'TOOL_ERROR')
             raise ToolPolicyError("TOOL_ERROR", f"tool execution failed: {exc}", http_status=500) from exc
 
         # 11. verify result shape (best-effort structural check)
         self._verify_result(contract, result)
 
         # 12. audit
+        _close_span("ALLOWED")
         self._audit(
             "ALLOWED",
             tool_name,

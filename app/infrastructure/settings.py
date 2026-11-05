@@ -78,6 +78,12 @@ class Settings(BaseSettings):
     # Purchases at or above this total require human approval.
     approval_threshold: Decimal = Decimal(1000)
 
+    # --- Phase 10 OpenTelemetry AgentOps --------------------------------
+    # In-memory by default (offline demo); OTLP export only when explicitly
+    # enabled. Exporter failure must never break procurement tasks.
+    otel_enabled: bool = True
+    otel_export_enabled: bool = False
+
     # --- Phase 1 approval security ---------------------------------------
     # When True (default), approval/reject writes require an authenticated
     # caller. There is no real identity layer yet, so with auth_enabled=True

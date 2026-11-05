@@ -153,6 +153,11 @@ class TraceRecord(Base):
     model: Mapped[str | None] = mapped_column(String(64), nullable=True)
     token_input: Mapped[int | None] = mapped_column(Integer, nullable=True)
     token_output: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Phase 10: W3C trace context for cross-process correlation (Commit B).
+    trace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    span_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    parent_span_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    lease_epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -590,6 +595,10 @@ class TaskRepository:
                     model=entry.get("model"),
                     token_input=entry.get("token_input"),
                     token_output=entry.get("token_output"),
+                    trace_id=entry.get("trace_id"),
+                    span_id=entry.get("span_id"),
+                    parent_span_id=entry.get("parent_span_id"),
+                    lease_epoch=entry.get("lease_epoch"),
                     created_at=_utcnow(),
                 )
             )

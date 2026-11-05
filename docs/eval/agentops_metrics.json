@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-02",
+  "runtime": [
+    "verified_task_completion_total",
+    "task_recovery_total",
+    "task_recovery_duration",
+    "lease_reclaim_total",
+    "stale_commit_rejected_total",
+    "unknown_outcome_total"
+  ],
+  "tool": [
+    "tool_invocation_total",
+    "tool_error_total",
+    "tool_duration",
+    "tool_retry_total",
+    "tool_policy_denial_total"
+  ],
+  "safety": [
+    "unauthorized_tool_attempt_total",
+    "unsafe_action_rejected_total",
+    "budget_violation_detected_total",
+    "approval_conflict_total"
+  ],
+  "cost": {
+    "actual_llm_calls": "REAL only (0 while REAL_LLM_NOT_RUN)",
+    "input_tokens": "REAL only",
+    "output_tokens": "REAL only",
+    "estimated_llm_cost": "REAL USD",
+    "supplier_query_cost": "observation proxy, NOT money",
+    "recovery_extra_invocations": "observation proxy"
+  },
+  "semantic_separation": "REAL vs MOCK vs estimate vs observation counts are strictly separate; missing values absent, never 0"
+}
