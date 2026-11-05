@@ -136,6 +136,9 @@ class ToolPolicyGateway:
             if otel_span is not None:
                 try:
                     otel_span.set_attribute("decision", decision)
+                    # Phase 11C: expose the same value as `outcome` so trace
+                    # consumers (workbench, E2E manifests) read one field.
+                    otel_span.set_attribute("outcome", decision)
                     if reason:
                         otel_span.set_attribute("reason_code", reason)
                     otel_span.end()

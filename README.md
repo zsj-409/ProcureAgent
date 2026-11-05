@@ -258,6 +258,38 @@ Real-LLM validation harness (Phase 8): `app/eval/phase8_llm.py` +
 `app/eval/phase8_portal.py`. Default `REAL_LLM_NOT_RUN`; explicit opt-in
 required (key + `llm_sandbox_only=false`), budgets enforced.
 
+## Enterprise Security Loop (Phase 11B/11C)
+
+Offline, reproducible end-to-end demo of the agent security loop:
+
+```bash
+# One command: task → MCP query → policy allow/deny → unsafe candidate →
+# independent verifier → gate REJECT → promotion blocked → OTel + audit
+.venv/Scripts/python -m app.evalops.final_demo
+# → docs/eval/final_enterprise_demo_manifest.json
+```
+
+What it proves (all real execution records, no hand-assembled JSON):
+
+| claim | evidence |
+|---|---|
+| unsafe candidate cannot become active | real mutant (hard-budget) → verifier INVALID → gate REJECTED → promotion blocked, active version unchanged |
+| cross-task MCP read denied | alice→bob's task → TASK_FORBIDDEN (object-level owner_id) |
+| promotion/rollback transactional | SQLite BEGIN IMMEDIATE + CAS; 2/4-worker subprocess races → exactly one winner |
+| tool overreach has no side effect | all 4 MCP tools read-only; mutation capability denied by construction |
+| trace ↔ manifest correspondence | one E2E manifest links candidate/input/world/gate/audit/OTel spans |
+| default: no paid calls | sandbox gate refuses real LLM even with a key (REAL_LLM_NOT_RUN) |
+
+Real-LLM status (Phase 11C): **REAL_LLM_NOT_RUN / NOT_EXECUTED_NO_
+CREDENTIALS** — no matching provider credentials + no budget authorization.
+The frozen 10+8 scenario harness is ready; any real run requires explicit
+operator opt-in. See `docs/experiments/PHASE11C_REAL_LLM_VALIDATION.md`.
+
+Security loop architecture docs: `docs/evalops/PHASE11B_BASELINE_AUDIT.md`,
+`REAL_CANDIDATE_REGRESSION_SPEC.md`, `DURABLE_PROMOTION_SPEC.md`,
+`docs/security/TOOL_AUTHORIZATION_BOUNDARY.md`,
+`docs/experiments/PHASE11B_FINAL_REPORT.md`.
+
 ## Production Quality Checks
 
 * Real LLM smoke test: `python scripts/llm_smoke_test.py` (requires user-configured `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL`).

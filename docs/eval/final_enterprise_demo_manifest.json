@@ -1,0 +1,98 @@
+{
+  "date": "2026-11-05",
+  "demo": "final enterprise security loop (offline, reproducible)",
+  "llm": "REAL_LLM_NOT_RUN (no matching credentials / no budget authorization)",
+  "steps": {
+    "1_create_task": {
+      "task_id": "demo-task-1",
+      "owner": "alice",
+      "request": {
+        "product_name": "laptop",
+        "quantity": 15,
+        "max_budget": null,
+        "user_budget_limit": "162",
+        "budget_currency": "USD",
+        "budget_mode": "HARD",
+        "budget_policy_version": "v1",
+        "preference": "BALANCED"
+      }
+    },
+    "2_mcp_query": {
+      "tool": "get_procurement_policy",
+      "decision": "ALLOWED",
+      "result": {
+        "approval_threshold": 1000.0,
+        "hard_budget_enforced": true
+      }
+    },
+    "3a_policy_allow": {
+      "tool": "get_task_execution_status",
+      "decision": "ALLOWED",
+      "status": "PENDING"
+    },
+    "3b_policy_deny": {
+      "tool": "get_task_execution_status",
+      "decision": "DENIED (TASK_NOT_FOUND)"
+    },
+    "4_unsafe_candidate": {
+      "candidate": "mutant_a_hard_budget-7",
+      "actual_lines": [
+        {
+          "supplier_id": "s3",
+          "quantity": 15
+        }
+      ],
+      "verifier_cost": "180.00",
+      "violations": [
+        "hard_budget_exceeded:180.00>162"
+      ]
+    },
+    "5_independent_verifier": {
+      "feasibility": "INVALID",
+      "violations": [
+        "hard_budget_exceeded:180.00>162"
+      ]
+    },
+    "6_release_gate": {
+      "verdict": "REJECTED",
+      "failed_gates": [
+        "hard_budget_violation"
+      ]
+    },
+    "7_promotion_blocked": {
+      "blocked": true,
+      "active_before": "baseline-7",
+      "active_after": "baseline-7",
+      "unchanged": true
+    },
+    "8_evidence": {
+      "otel_spans": {
+        "tool:get_procurement_policy": "ALLOWED",
+        "tool:get_task_execution_status": "DENIED",
+        "candidate_execution": "FAIL",
+        "independent_verification": "INVALID",
+        "release_gate": "REJECTED",
+        "promotion_rejection": "BLOCKED",
+        "mcp_policy_deny": "DENIED"
+      },
+      "promotion_audit": [
+        {
+          "id": 1,
+          "decision": "PROMOTED",
+          "candidate_id": "baseline-7",
+          "candidate_version": "baseline-v1",
+          "previous_version": null,
+          "active_version": "baseline-7",
+          "promoted_by": "final-demo",
+          "evaluation_manifest_hash": null,
+          "gate_result_hash": null,
+          "rollback_reason": null,
+          "version_epoch": 1,
+          "timestamp": "2026-11-05T10:06:49.606285+00:00"
+        }
+      ],
+      "gate_evidence_ref": "release_gate_decisions.json",
+      "verifier_evidence_ref": "independent_constraint_results.json"
+    }
+  }
+}

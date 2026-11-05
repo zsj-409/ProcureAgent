@@ -28,7 +28,11 @@ from typing import Any
 
 from opentelemetry import metrics, trace
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
+from opentelemetry.sdk.metrics.export import (
+    ConsoleMetricExporter,
+    InMemoryMetricReader,
+    PeriodicExportingMetricReader,
+)
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -75,8 +79,19 @@ def setup_otel(
     if span_exporter is not None:
         tracer_provider.add_span_processor(BatchSpanProcessor(span_exporter))
 
-    metrics_reader = PeriodicExportingMetricReader(ConsoleMetricExporter(), export_interval_millis=60000)
-    meter_provider = MeterProvider(resource=resource, metric_readers=[metrics_reader])
+    # Metrics: in-memory default (no console exporter — its background
+    # thread writes to stdout at process exit and raises "I/O operation on
+    # closed file" in tests). A periodic console reader is only created when
+    # OTLP/metric export is explicitly enabled.
+    if enable_export and not in_memory:
+        metrics_reader = PeriodicExportingMetricReader(
+            ConsoleMetricExporter(), export_interval_millis=60000
+        )
+        meter_provider = MeterProvider(resource=resource, metric_readers=[metrics_reader])
+    else:
+        meter_provider = MeterProvider(
+            resource=resource, metric_readers=[InMemoryMetricReader()]
+        )
     metrics.set_meter_provider(meter_provider)
     trace.set_tracer_provider(tracer_provider)
 

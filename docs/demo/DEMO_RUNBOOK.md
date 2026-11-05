@@ -37,6 +37,20 @@ Demo 身份：请求头 `X-Demo-Actor: demo-approver`（仅此值被接受，其
 | 5 | 未授权审批拒绝 / 审批版本 / 硬预算 | 无 header 点审批 → 401；有 header 点审批 | AUTH_REQUIRED / CAS + 版本绑定 |
 | 6 | Greedy vs Constrained Optimizer | Observatory → Procurement Optimization | CBC 对比表 + 诚实边界 |
 | 7 | 正结果、负结果与统计限制 | Observatory → Agent Experiment Lab | Phase 7 120 案例表 + 边界说明 |
+| 8 | **安全闭环（Phase 11B/11C）** | `python -m app.evalops.final_demo` 一条命令 | mutant→verifier INVALID→gate REJECT→promotion BLOCKED→OTel+audit manifest |
+
+## 安全闭环演示（第 8 步，可选但强烈推荐）
+
+```bash
+.venv/Scripts/python -m app.evalops.final_demo
+# → docs/eval/final_enterprise_demo_manifest.json（读这个文件做讲解）
+```
+
+讲解点（全部真实执行记录）：
+1. MCP `get_procurement_policy` ALLOWED；读**他人任务** DENIED（TASK_FORBIDDEN）。
+2. 注入不安全候选（硬预算 mutant）→ 独立 Verifier 重算 180 > 162。
+3. Release Gate REJECTED → Durable Promotion 拒绝 → **Active Version 不变**。
+4. OTel 4 个 span（FAIL/INVALID/REJECTED/BLOCKED）+ audit + manifest 对应。
 
 ## 关键诚实标注（演示时主动说明）
 
@@ -47,7 +61,9 @@ Demo 身份：请求头 `X-Demo-Actor: demo-approver`（仅此值被接受，其
 - **Phase 7**：三策略成功率相同（30/40 + safe_stop 10/40）；Cost-Aware 减少的是
   额外**观察次数**（obs 40→20/0），观察次数不是真实金额成本。
 - **F Tuned 与 E Cost-Aware 结果相同**——不宣传 F 相比 E 有额外提升。
-- **REAL_LLM_NOT_RUN**：所有 LLM 相关实验均为 SCRIPTED/MOCK，真实 LLM 未运行。
+- **REAL_LLM_NOT_RUN / NOT_EXECUTED_NO_CREDENTIALS**：所有 LLM 相关实验
+  均为 SCRIPTED/MOCK，真实 LLM 未运行（无匹配凭据 + 无费用授权）。Phase 8
+  harness 冻结 10+8 场景就绪，任何真实运行需显式 opt-in。
 
 ## 测试命令
 

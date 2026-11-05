@@ -566,6 +566,35 @@ RATE_LIMITED、result-schema 异常分支未 close span。OTel 规范要求创�
 - 测试：test_phase11b_authz_e2e.py（7）+ test_phase11b_observatory.py（3）。
 全量 **414 passed**（404+10），ruff clean，历史 benchmark 字节不变。
 
+### Phase 11C（2026-11-05）— Scoped Real-LLM Validation & Final Release
+
+任务书（无 @file，直接消息）：凭据 + 费用预算双条件决定真实 LLM。
+
+- **Task 1 Preflight**：Phase 8 harness（OpenAICompatibleModelClient +
+  sandbox 门禁）确认——模型输出仅是 proposal，变更必须经 Policy/
+  ApprovalGuard/EvalOps；预算上限（max_calls 20 / tokens 2000 / retry 1 /
+  cost 5 USD）就绪；默认 sandbox 拒付费调用。
+- **凭据判断**：环境有 ARK_API_KEY，但 llm_base_url/model 是 OpenAI 默认
+  → provider 不匹配；无明确费用授权 → **不发起真实调用**，标记
+  **NOT_EXECUTED_NO_CREDENTIALS**，保持 REAL_LLM_NOT_RUN。
+- **Task 3 Final Demo**（app/evalops/final_demo.py）：一条命令 8 步完整
+  安全闭环，全部真实执行记录——创建任务→MCP get_procurement_policy
+  ALLOWED→读他人任务 DENIED(TASK_FORBIDDEN)→注入硬预算 mutant→独立
+  Verifier INVALID(180>162)→Gate REJECTED→Promotion BLOCKED（active 保持
+  baseline-7）→OTel 7 span + audit + manifest。产物
+  final_enterprise_demo_manifest.json。
+- **Task 4 文档**：README Enterprise Security Loop 章节、DEMO_RUNBOOK
+  第 8 步、PHASE11C_REAL_LLM_VALIDATION.md。
+- **Task 7 修复**：
+  - OTel in-memory 默认改用 InMemoryMetricReader——消除 ConsoleMetricExporter
+    后台线程进程退出时的 "I/O operation on closed file" 噪音（Phase 11B
+    遗留，已定位并消除）。
+  - MCP tool span 补 outcome 属性（=decision 同值），trace 消费统一字段。
+- 全量 **414 passed**、ruff clean、历史 benchmark 字节不变。
+
+**项目可封版**：离线完整安全闭环可演示；真实模型能力诚实区分（未运行，
+无凭据）与受控模拟验证（充分）。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

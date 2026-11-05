@@ -163,6 +163,23 @@ EvalOps 正确性修复（用户决定：先 11A 再 11B，最后按凭据决定
 
 ## Phase 11B 验收（Task 10 全部 18 项 ✅）
 
+## Phase 11C 完成（2026-11-05）
+
+- **Real-LLM：NOT_EXECUTED_NO_CREDENTIALS**——检测到 ARK_API_KEY 但
+  base_url/model 是 OpenAI 默认（provider 不匹配），且无明确费用授权；
+  按任务书保持 REAL_LLM_NOT_RUN，不发起真实调用。
+- **Task 3 Final Demo**：`app/evalops/final_demo.py` 一条命令跑完整安全
+  闭环（创建任务→MCP 查询→Policy ALLOW/DENY→注入不安全候选→独立
+  Verifier→Gate REJECT→Promotion BLOCKED→OTel+audit manifest）。
+- **Task 4 文档**：README 加 Enterprise Security Loop 章节、DEMO_RUNBOOK
+  加第 8 步安全闭环、PHASE11C_REAL_LLM_VALIDATION.md。
+- **Task 7 修复**：OTel in-memory 默认改用 InMemoryMetricReader（消除
+  ConsoleMetricExporter 后台线程的 closed-file 噪音）；MCP tool span 补
+  outcome 属性。
+- 全量 **414 passed**、ruff clean、历史 benchmark 字节不变。
+
+## 路线图
+
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行
 - **Phase 2**：Durable Runtime（原子 Claim/Lease/Heartbeat/Checkpoint/过期扫描/崩溃恢复/Idempotency Key/Unknown Outcome）+ 故障注入（CrashPoint/FaultInjector）
 - **Phase 3**：审批权限模型（Requester/Operator/Approver/Auditor）+ 版本绑定 + 事务一致性
