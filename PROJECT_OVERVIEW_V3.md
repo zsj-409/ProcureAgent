@@ -133,7 +133,7 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
   故意不安全 candidate 被 REJECTED 的核心演示）。
 - 历史 Phase 4-7 benchmark 字节不变；无真实付款/付费 LLM。
 
-## Phase 11A 完成（2026-11-05，371 passed）
+## Phase 11A 完成（2026-11-05，379 passed）
 
 EvalOps 正确性修复（用户决定：先 11A 再 11B，最后按凭据决定 11C）：
 - **P0**：gate_summary 不再把 INSUFFICIENT_EVIDENCE 当 PASS——任何证据
@@ -141,7 +141,11 @@ EvalOps 正确性修复（用户决定：先 11A 再 11B，最后按凭据决定
 - **P1**：移除信任调用方 verdict 字符串的 apply_gate_verdict，改
   apply_gate_results 从真实 gate results 重算（防伪造）。
 - **P1**：release_candidate_manifest.json 契约形状统一为扁平 manifest。
-- 371 passed（+6 新测试）、ruff clean。
+- **P0 Span 生命周期**（任务书指出的核心）：orchestrator run/resume 用
+  try/finally 保证 root/resume span 在所有路径（提前返回/异常）都结束；
+  MCP gateway 的 SCHEMA_INVALID / RATE_LIMITED / RESULT_SCHEMA_INVALID /
+  TOOL_ERROR 分支全部 close tool span。8 个新测试证明。
+- 379 passed（+14 新测试）、ruff clean。
 
 ## 路线图
 

@@ -443,6 +443,33 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
 - 产物重生成：release_candidate_manifest.json（新形状）、
   release_gate_results.json（unsafe REJECTED / safe QUALIFIED 不变）。
 
+### Phase 11A-2（2026-11-05）— Span 生命周期修复（任务书 P0）
+
+任务书指出 OTel Span 生命周期 P0：orchestrator 提前返回（plan 校验失败、
+resume 异常路径）root/resume span 未结束；MCP gateway 的 SCHEMA_INVALID、
+RATE_LIMITED、result-schema 异常分支未 close span。OTel 规范要求创建者
+必须结束 span——未结束导致资源泄漏、缺导出记录。
+
+**修复（try/finally 保证全覆盖）：**
+- `orchestrator.run()`：整个执行体包 try/finally，root span 在 finally
+  结束（outcome=FAILED/ERROR 兜底），plan-reject 提前返回不再泄漏。
+- `orchestrator.resume()`：同样 try/finally，missing-task raise / 持久化
+  plan 校验失败 return 路径都结束 ResumeAttempt span（outcome=ERROR）。
+- `mcp_gateway/policy.py` execute()：SCHEMA_INVALID / RATE_LIMITED /
+  TOOL_POLICY_ERROR / RESULT_SCHEMA_INVALID（新增审计条目）分支全部
+  _close_span("DENIED", reason)；handler 意外异常 TOOL_ERROR 已 close。
+- 硬崩溃（os._exit）无法执行 finally——靠持久化 Attempt + 恢复事件关联
+  不完整 trace（既有 Phase 2/3 语义，本 commit 未改变）。
+
+**测试（tests/test_phase11a_otel.py，8 个）：**
+- run plan-reject 路径 root span 存在且 outcome=FAILED/ERROR
+- resume missing-task raise 路径 resume span outcome=ERROR
+- gateway SCHEMA_INVALID / RATE_LIMITED / ALLOWED / RESULT_SCHEMA_INVALID
+  / TOOL_ERROR 五路径 tool span 全部结束且带 decision/reason_code
+- span 计数与测试顺序无关（autouse 前置 clear exporter）
+
+全量 **379 passed**（371+8），ruff clean。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

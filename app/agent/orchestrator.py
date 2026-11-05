@@ -292,7 +292,10 @@ class ProcurementOrchestrator:
     async def run(self, task_id: str, request: ProcurementRequest) -> TaskState:
         """Run a new procurement task."""
 
-        # Phase 10: OpenTelemetry root span for the whole task.
+        # Phase 10/11A: OpenTelemetry root span for the whole task. The span
+        # is closed in a finally block so EVERY path (success, plan-reject,
+        # exception) ends it — a leaked span produces no export and no
+        # failure trace (OTel spec: the creator must end the span).
         otel = getattr(self, "otel_handle", None)
         root_span = None
         if otel is not None and otel.get("tracer") is not None:
@@ -308,55 +311,63 @@ class ProcurementOrchestrator:
             except Exception:
                 root_span = None
 
-        now = datetime.now(UTC)
-        state = TaskState(
-            task_id=task_id,
-            status=TaskStatus.PENDING,
-            created_at=now,
-            updated_at=now,
-        )
-        self.repository.save_state(state)
-
-        state.status = TaskStatus.PLANNING
-        self._save(state)
-        suppliers = self.router.suppliers()
-        plan = await self.planner.plan(request, suppliers, "")
-        # Phase 1 runtime enforcement: an unvalidated plan must never reach the
-        # executor. The planner already validates internally, but the runtime
-        # enforces it again at the execution boundary (defense in depth).
-        validation_error = self._validate_plan_for_execution(plan, suppliers)
-        if validation_error:
-            return self._fail(
-                state,
-                {},
-                f"Plan rejected before execution: {validation_error}",
+        try:
+            now = datetime.now(UTC)
+            state = TaskState(
+                task_id=task_id,
+                status=TaskStatus.PENDING,
+                created_at=now,
+                updated_at=now,
             )
-        self.repository.save_plan(task_id, plan)
+            self.repository.save_state(state)
 
-        state.status = TaskStatus.COLLECTING
-        state.current_step = "collect"
-        self._save(state)
-        result = await self._execute_plan(task_id, request, plan, state)
-        # Phase 10: close the root span; persist the traceparent so a later
-        # crash + recovery attempt can inherit the same trace (W3C).
-        if root_span is not None:
-            try:
-                from ..observability.otel import end_span
-
-                end_span(root_span, outcome=str(result.status.value))
-                self.trace.record(
-                    task_id=task_id,
-                    step="otel",
-                    component="ProcurementOrchestrator",
-                    action="trace_root",
-                    status="SUCCESS",
-                    duration_ms=0,
-                    trace_id=f"{root_span.context.trace_id:032x}",
-                    span_id=f"{root_span.context.span_id:016x}",
+            state.status = TaskStatus.PLANNING
+            self._save(state)
+            suppliers = self.router.suppliers()
+            plan = await self.planner.plan(request, suppliers, "")
+            # Phase 1 runtime enforcement: an unvalidated plan must never reach the
+            # executor. The planner already validates internally, but the runtime
+            # enforces it again at the execution boundary (defense in depth).
+            validation_error = self._validate_plan_for_execution(plan, suppliers)
+            if validation_error:
+                return self._fail(
+                    state,
+                    {},
+                    f"Plan rejected before execution: {validation_error}",
                 )
-            except Exception:
-                pass
-        return result
+            self.repository.save_plan(task_id, plan)
+
+            state.status = TaskStatus.COLLECTING
+            state.current_step = "collect"
+            self._save(state)
+            result = await self._execute_plan(task_id, request, plan, state)
+            return result
+        finally:
+            # Phase 10: close the root span; persist the traceparent so a later
+            # crash + recovery attempt can inherit the same trace (W3C).
+            # result may be unbound if an exception escaped before assignment —
+            # guard it (the span MUST still end on every path).
+            result = locals().get("result")
+            if root_span is not None:
+                try:
+                    from ..observability.otel import end_span
+
+                    end_span(
+                        root_span,
+                        outcome=str(result.status.value) if result is not None else "ERROR",
+                    )
+                    self.trace.record(
+                        task_id=task_id,
+                        step="otel",
+                        component="ProcurementOrchestrator",
+                        action="trace_root",
+                        status="SUCCESS",
+                        duration_ms=0,
+                        trace_id=f"{root_span.context.trace_id:032x}",
+                        span_id=f"{root_span.context.span_id:016x}",
+                    )
+                except Exception:
+                    pass
 
     async def resume(self, task_id: str) -> TaskState:
         """Resume a FAILED task using the same task id and plan."""
@@ -392,53 +403,60 @@ class ProcurementOrchestrator:
             except Exception:
                 resume_span = None
 
-        record = self.repository.get(task_id)
-        if record is None:
-            raise ValueError(f"Task {task_id} does not exist")
-        state = self.repository.to_state(record)
-        request = self.repository.get_request(task_id)
-        plan = self.repository.get_plan(task_id)
-        if request is None:
-            raise ValueError(f"Task {task_id} has no persisted request")
-        suppliers = self.router.suppliers()
-        if plan is None:
-            plan = await self.planner.plan(request, suppliers, "")
-            validation_error = self._validate_plan_for_execution(plan, suppliers)
-            if validation_error:
-                raise ValueError(f"Plan rejected before execution: {validation_error}")
-            self.repository.save_plan(task_id, plan)
-        else:
-            # A persisted plan (possibly from an older schema version) must
-            # also pass the current validator before it is executed again.
-            validation_error = self._validate_plan_for_execution(plan, suppliers)
-            if validation_error:
-                state.status = TaskStatus.FAILED
-                state.error = f"Persisted plan rejected on resume: {validation_error}"
-                self._save(state)
-                return state
+        try:
+            record = self.repository.get(task_id)
+            if record is None:
+                raise ValueError(f"Task {task_id} does not exist")
+            state = self.repository.to_state(record)
+            request = self.repository.get_request(task_id)
+            plan = self.repository.get_plan(task_id)
+            if request is None:
+                raise ValueError(f"Task {task_id} has no persisted request")
+            suppliers = self.router.suppliers()
+            if plan is None:
+                plan = await self.planner.plan(request, suppliers, "")
+                validation_error = self._validate_plan_for_execution(plan, suppliers)
+                if validation_error:
+                    raise ValueError(f"Plan rejected before execution: {validation_error}")
+                self.repository.save_plan(task_id, plan)
+            else:
+                # A persisted plan (possibly from an older schema version) must
+                # also pass the current validator before it is executed again.
+                validation_error = self._validate_plan_for_execution(plan, suppliers)
+                if validation_error:
+                    state.status = TaskStatus.FAILED
+                    state.error = f"Persisted plan rejected on resume: {validation_error}"
+                    self._save(state)
+                    return state
 
-        state.status = TaskStatus.COLLECTING
-        state.error = None
-        state.current_step = "collect"
-        self.trace.record(
-            task_id=task_id,
-            step="resume",
-            component="ProcurementOrchestrator",
-            action="resume_started",
-            status="SUCCESS",
-            duration_ms=0,
-        )
-        self._save(state)
-        result = await self._execute_plan(task_id, request, plan, state, resume=True)
-        # Phase 10: close the resume span.
-        if resume_span is not None:
-            try:
-                from ..observability.otel import end_span
+            state.status = TaskStatus.COLLECTING
+            state.error = None
+            state.current_step = "collect"
+            self.trace.record(
+                task_id=task_id,
+                step="resume",
+                component="ProcurementOrchestrator",
+                action="resume_started",
+                status="SUCCESS",
+                duration_ms=0,
+            )
+            self._save(state)
+            result = await self._execute_plan(task_id, request, plan, state, resume=True)
+            return result
+        finally:
+            # Phase 11A: the resume span MUST end on every path (success,
+            # early return, raised exception) — never leak it.
+            result = locals().get("result")
+            if resume_span is not None:
+                try:
+                    from ..observability.otel import end_span
 
-                end_span(resume_span, outcome=str(result.status.value))
-            except Exception:
-                pass
-        return result
+                    end_span(
+                        resume_span,
+                        outcome=str(result.status.value) if result is not None else "ERROR",
+                    )
+                except Exception:
+                    pass
 
     async def _execute_plan(
         self,

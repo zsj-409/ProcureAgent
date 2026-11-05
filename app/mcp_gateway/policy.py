@@ -229,14 +229,20 @@ class ToolPolicyGateway:
                 event_input_hash,
                 started,
             )
+            _close_span("DENIED", 'SCHEMA_INVALID')
             raise ToolPolicyError(
                 "SCHEMA_INVALID",
                 f"arguments fail tool schema: {exc}",
                 http_status=422,
             ) from exc
 
-        # 9. budget
-        self._check_budget(contract)
+        # 9. budget (RATE_LIMITED raises ToolPolicyError; span closed below)
+        try:
+            self._check_budget(contract)
+        except ToolPolicyError:
+            self._audit("DENIED", tool_name, principal.id, "RATE_LIMITED", task_id, event_input_hash, started)
+            _close_span("DENIED", 'RATE_LIMITED')
+            raise
 
         # 10. execute
         handler = self._handlers.get(tool_name)
@@ -247,6 +253,7 @@ class ToolPolicyGateway:
         try:
             result = handler(arguments, principal, context)
         except ToolPolicyError:
+            _close_span("DENIED", 'TOOL_POLICY_ERROR')
             raise
         except Exception as exc:
             self._audit("DENIED", tool_name, principal.id, "TOOL_ERROR", task_id, event_input_hash, started)
@@ -254,7 +261,24 @@ class ToolPolicyGateway:
             raise ToolPolicyError("TOOL_ERROR", f"tool execution failed: {exc}", http_status=500) from exc
 
         # 11. verify result shape (best-effort structural check)
-        self._verify_result(contract, result)
+        try:
+            self._verify_result(contract, result)
+        except Exception as exc:
+            self._audit(
+                "DENIED",
+                tool_name,
+                principal.id,
+                "RESULT_SCHEMA_INVALID",
+                task_id,
+                event_input_hash,
+                started,
+            )
+            _close_span("DENIED", 'RESULT_SCHEMA_INVALID')
+            raise ToolPolicyError(
+                "RESULT_SCHEMA_INVALID",
+                f"tool result fails output schema: {exc}",
+                http_status=500,
+            ) from exc
 
         # 12. audit
         _close_span("ALLOWED")
