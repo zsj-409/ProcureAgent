@@ -124,7 +124,13 @@ def create_app(
     async def lifespan(app: FastAPI):
         for key, value in components.items():
             setattr(app.state, key, value)
-        yield
+        # Start the MCP session manager (owns the anyio task group).
+        mcp_mgr = getattr(app.state, "mcp_session_manager", None)
+        if mcp_mgr is not None:
+            async with mcp_mgr.run():
+                yield
+        else:
+            yield
         components["background"].shutdown()
 
     app = FastAPI(
@@ -150,6 +156,30 @@ def create_app(
     frames_root = Path(settings.portal_frames_dir)
     frames_root.mkdir(parents=True, exist_ok=True)
     app.mount("/portal-frames", StaticFiles(directory=str(frames_root)), name="portal-frames")
+
+    # Phase 10: Secure MCP Tool Gateway — mounted BEFORE the catch-all "/"
+    # static mount, otherwise StaticFiles (GET/HEAD only) would swallow the
+    # MCP POST requests with 405.
+    if getattr(settings, "mcp_enabled", True):
+        from .mcp_gateway.server import build_mcp_asgi_app, build_mcp_server
+
+        mcp_server = build_mcp_server(
+            settings=settings,
+            registry=components["registry"],
+            repository=components["repository"],
+            guard=components["approval_guard"],
+            task_owner=lambda task_id: (
+                "demo-approver" if components["repository"].get(task_id) else None
+            ),
+        )
+        mcp_asgi, mcp_session_manager = build_mcp_asgi_app(mcp_server, path="/mcp")
+        # Starlette Mount with path "/mcp" compiles to ^/mcp/(?P<path>.*)$
+        # (trailing slash REQUIRED), so bare POST /mcp falls through to the
+        # "/" static mount → 405. Mount at "/mcp/" — clients use the
+        # canonical "/mcp/" URL (mcp SDK streamable_http_client does).
+        app.mount("/mcp/", mcp_asgi, name="mcp")
+        app.state.mcp_server = mcp_server
+        app.state.mcp_session_manager = mcp_session_manager
 
     static_dir = Path(__file__).parent / "webui" / "static"
     if static_dir.is_dir():

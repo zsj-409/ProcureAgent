@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-02",
+  "sdk": "mcp 2.3.0",
+  "transport": "streamable-http",
+  "tools_registered": [
+    "search_supplier_quotes",
+    "get_supplier_inventory",
+    "get_procurement_policy",
+    "get_task_execution_status"
+  ],
+  "security_tests": [
+    {
+      "id": "auth_required",
+      "result": "PASS",
+      "test": "test_mcp_unauthenticated_call_denied"
+    },
+    {
+      "id": "unknown_tool",
+      "result": "PASS",
+      "test": "test_real_mcp_client (unknown tool)"
+    },
+    {
+      "id": "scope_denied",
+      "result": "PASS",
+      "test": "test_scope_insufficient_denied"
+    },
+    {
+      "id": "task_ownership",
+      "result": "PASS",
+      "test": "test_task_ownership_denied"
+    },
+    {
+      "id": "schema_invalid",
+      "result": "PASS",
+      "test": "test_schema_invalid_denied"
+    },
+    {
+      "id": "mutation_blocked",
+      "result": "PASS",
+      "test": "test_no_payment_or_order_tool_exists"
+    },
+    {
+      "id": "prompt_injection",
+      "result": "PASS",
+      "test": "test_injected_tool_description_cannot_register"
+    },
+    {
+      "id": "rate_limit",
+      "result": "PASS",
+      "test": "test_rate_limit_denied"
+    },
+    {
+      "id": "audit",
+      "result": "PASS",
+      "test": "test_denial_audited_with_reason"
+    }
+  ],
+  "interop": {
+    "real_mcp_client_discover": true,
+    "real_mcp_client_call": true
+  }
+}

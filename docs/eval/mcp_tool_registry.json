@@ -1,0 +1,290 @@
+{
+  "registry_version": "1.0.0",
+  "tools": [
+    {
+      "tool_name": "search_supplier_quotes",
+      "tool_version": "1.0.0",
+      "description": "Read supplier quotes for a product (read-only). Returns supplier, sku, price, currency, stock, delivery, quote validity, version, source.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "supplier_filter": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "task_context": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "product_id",
+          "quantity"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "quotes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "supplier_id": {
+                  "type": "string"
+                },
+                "sku": {
+                  "type": "string"
+                },
+                "unit_price": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "available_stock": {
+                  "type": "integer"
+                },
+                "delivery_estimate": {
+                  "type": "string"
+                },
+                "quote_timestamp": {
+                  "type": "string"
+                },
+                "quote_expiry": {
+                  "type": "string"
+                },
+                "quote_version": {
+                  "type": "string"
+                },
+                "source_identifier": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "supplier_id",
+                "sku",
+                "unit_price",
+                "currency",
+                "available_stock",
+                "delivery_estimate",
+                "quote_timestamp",
+                "quote_expiry",
+                "quote_version",
+                "source_identifier"
+              ]
+            }
+          }
+        },
+        "required": [
+          "quotes"
+        ]
+      },
+      "required_scope": "procurement:read",
+      "operation_capability": "READ_ONLY_RETRYABLE",
+      "timeout_s": 15.0,
+      "retry_policy": {
+        "max_retries": 2,
+        "retryable_error_codes": [
+          "timeout",
+          "network",
+          "5xx"
+        ],
+        "retry_safe": true
+      },
+      "rate_limit_per_min": 60,
+      "result_size_limit": 65536,
+      "audit_policy": "deny_and_fail_audited"
+    },
+    {
+      "tool_name": "get_supplier_inventory",
+      "tool_version": "1.0.0",
+      "description": "Read a supplier SKU's available inventory and snapshot version (read-only).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "supplier_id": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "supplier_id",
+          "sku"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "supplier_id": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "available_stock": {
+            "type": "integer"
+          },
+          "snapshot_version": {
+            "type": "string"
+          },
+          "last_updated": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "supplier_id",
+          "sku",
+          "available_stock",
+          "snapshot_version",
+          "last_updated"
+        ]
+      },
+      "required_scope": "procurement:read",
+      "operation_capability": "READ_ONLY_RETRYABLE",
+      "timeout_s": 15.0,
+      "retry_policy": {
+        "max_retries": 2,
+        "retryable_error_codes": [
+          "timeout",
+          "network",
+          "5xx"
+        ],
+        "retry_safe": true
+      },
+      "rate_limit_per_min": 60,
+      "result_size_limit": 16384,
+      "audit_policy": "deny_and_fail_audited"
+    },
+    {
+      "tool_name": "get_procurement_policy",
+      "tool_version": "1.0.0",
+      "description": "Return the caller-visible procurement policy summary (approval threshold, hard budget, expiry rule, split cap). No internal secrets, no other-tenant data.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_context": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "approval_threshold": {
+            "type": "number"
+          },
+          "hard_budget_enforced": {
+            "type": "boolean"
+          },
+          "quote_expiry_required": {
+            "type": "boolean"
+          },
+          "max_split_suppliers": {
+            "type": "integer"
+          },
+          "policy_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "approval_threshold",
+          "hard_budget_enforced",
+          "quote_expiry_required",
+          "max_split_suppliers",
+          "policy_version"
+        ]
+      },
+      "required_scope": "procurement:read",
+      "operation_capability": "READ_ONLY_RETRYABLE",
+      "timeout_s": 5.0,
+      "retry_policy": {
+        "max_retries": 1,
+        "retryable_error_codes": [
+          "timeout",
+          "network",
+          "5xx"
+        ],
+        "retry_safe": true
+      },
+      "rate_limit_per_min": 120,
+      "result_size_limit": 8192,
+      "audit_policy": "deny_and_fail_audited"
+    },
+    {
+      "tool_name": "get_task_execution_status",
+      "tool_version": "1.0.0",
+      "description": "Return a SAFE-FILTERED execution status for an authorized task. Never leaks another task's trace, approvals, or supplier data.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "current_step": {
+            "type": "string",
+            "default": null
+          },
+          "created_at": {
+            "type": "string",
+            "default": null
+          },
+          "updated_at": {
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "task_id",
+          "status"
+        ]
+      },
+      "required_scope": "task:read",
+      "operation_capability": "READ_ONLY_RETRYABLE",
+      "timeout_s": 5.0,
+      "retry_policy": {
+        "max_retries": 1,
+        "retryable_error_codes": [
+          "timeout",
+          "network",
+          "5xx"
+        ],
+        "retry_safe": true
+      },
+      "rate_limit_per_min": 120,
+      "result_size_limit": 8192,
+      "audit_policy": "deny_and_fail_audited"
+    }
+  ]
+}
