@@ -503,6 +503,35 @@ RATE_LIMITED、result-schema 异常分支未 close span。OTel 规范要求创�
 测试：tests/test_phase11b_mutation.py（8 个）。
 全量 **387 passed**（379+8），ruff clean。
 
+#### Commit B — Durable Promotion 与并发控制
+
+**Task 3/4 P0**：PromotionManager 从纯内存（dict+list）改为 SQLite 持久化
++ CAS 事务（app/evalops/promotion.py DurablePromotionManager）。
+
+- 数据模型：promotion_state（active_version/version_epoch/promotion_status/
+  previous_version/manifest/gate hashes/rollback_reason）+ promotion_audit
+  （append-only，与状态变更同事务）。
+- 原子 promote：BEGIN IMMEDIATE → 事务内读（串行点）→ 要求 QUALIFIED →
+  更新 active_version + epoch++ → 写 audit → COMMIT；异常 ROLLBACK。
+- apply_gate_results 从真实 gate results 重算（INSUFFICIENT_EVIDENCE →
+  REJECTED），不信任 caller verdict 字符串。
+- 跨进程竞争（真实子进程 + 文件型 SQLite）：
+  - 2/4 worker 同候选 → 恰 1 个 PROMOTED，败者明确错误，audit 仅 1 行。
+  - 两候选竞争 → 最后 COMMIT 者赢，仅 1 个 active version。
+  - 重复 promote 不推进 epoch/历史。
+  - crash before COMMIT（os._exit 子进程）→ 事务回滚：active=None、
+    epoch=0、无 audit。
+  - crash after COMMIT → 新连接看到一致状态。
+  - audit 写失败 → 整事务回滚（active 不变）。
+- rollback：CAS on active version（非 active → NOT_ACTIVE / 过期 →
+  ACTIVE_VERSION_MISMATCH）；退役 active 指针 + 写 ROLLED_BACK audit +
+  reason；**不重写历史任务/plan/checkpoint 绑定**（运行任务保留自己版本）。
+- 产物：promotion_race_results.json（2-worker race + crash-before-commit）、
+  rollback_consistency_results.json。
+- 文档：DURABLE_PROMOTION_SPEC.md。
+- 测试：tests/test_phase11b_promotion.py（17 个，含 4 跨进程竞争 + 2 crash）。
+全量 **404 passed**（387+17），ruff clean。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

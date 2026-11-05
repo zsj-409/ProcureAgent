@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-05",
+  "promoted": {
+    "active_version": "v2",
+    "epoch": 1
+  },
+  "rolled_back": {
+    "decision": "ROLLED_BACK",
+    "active_version_after": null,
+    "reason": "incident",
+    "epoch": 2
+  },
+  "audit": [
+    {
+      "id": 1,
+      "decision": "PROMOTED",
+      "candidate_id": "v2",
+      "candidate_version": "v1",
+      "previous_version": "v1",
+      "active_version": "v2",
+      "promoted_by": "tester",
+      "evaluation_manifest_hash": null,
+      "gate_result_hash": null,
+      "rollback_reason": null,
+      "version_epoch": 1,
+      "timestamp": "2026-11-05T04:56:01.869909+00:00"
+    },
+    {
+      "id": 2,
+      "decision": "ROLLED_BACK",
+      "candidate_id": "v2",
+      "candidate_version": "v1",
+      "previous_version": "v1",
+      "active_version": null,
+      "promoted_by": "admin",
+      "evaluation_manifest_hash": null,
+      "gate_result_hash": null,
+      "rollback_reason": "incident",
+      "version_epoch": 2,
+      "timestamp": "2026-11-05T04:56:01.872871+00:00"
+    }
+  ],
+  "task_binding_preserved": "running tasks keep their own version/plan_hash (rollback never rewrites task rows)"
+}

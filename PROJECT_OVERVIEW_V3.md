@@ -147,6 +147,16 @@ EvalOps 正确性修复（用户决定：先 11A 再 11B，最后按凭据决定
   TOOL_ERROR 分支全部 close tool span。8 个新测试证明。
 - 379 passed（+14 新测试）、ruff clean。
 
+## Phase 11B 进行中（2026-11-05）
+
+- **Commit A `0604ad2`**：真实候选安全退化检测——Candidate Mutation
+  Harness（baseline greedy + 3 mutants：hard-budget/expired-quote/
+  inventory），独立 Verifier 重算全部约束，无预填 FAIL 标签。387 passed。
+- **Commit B**：Durable Promotion——SQLite 持久化 + BEGIN IMMEDIATE CAS
+  事务 + 跨进程竞争（2/4 worker 恰 1 赢家）+ crash 一致性 + rollback
+  版本安全。404 passed。
+- 历史 benchmark 字节不变；无真实付款/付费 LLM。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行

@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-05",
+  "protocol": "real subprocess workers on a file-backed SQLite; BEGIN IMMEDIATE + CAS",
+  "two_worker_race": {
+    "workers": [
+      {
+        "ok": false,
+        "error": "promotion requires QUALIFIED; current=PROMOTED",
+        "type": "PromotionRaceError"
+      },
+      {
+        "ok": true,
+        "decision": "PROMOTED",
+        "epoch": 1
+      }
+    ],
+    "active_version": "race-cand",
+    "promoted_audit_count": 1,
+    "audit": [
+      {
+        "id": 1,
+        "decision": "PROMOTED",
+        "candidate_id": "race-cand",
+        "candidate_version": "v1",
+        "previous_version": null,
+        "active_version": "race-cand",
+        "promoted_by": "worker",
+        "evaluation_manifest_hash": null,
+        "gate_result_hash": null,
+        "rollback_reason": null,
+        "version_epoch": 1,
+        "timestamp": "2026-11-05T04:56:01.767962+00:00"
+      }
+    ],
+    "winner_count": 1
+  },
+  "crash_before_commit": {
+    "active_version_after_crash": null,
+    "epoch_after_crash": 0,
+    "audit_count": 0,
+    "consistent": true
+  }
+}
