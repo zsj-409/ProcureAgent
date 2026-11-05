@@ -2,6 +2,53 @@
 
 > A production-oriented procurement agent with LLM planning, reliable execution, API/portal integrations, checkpoint recovery, deterministic decision workflows, and full execution tracing.
 
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![pytest](https://img.shields.io/badge/pytest-414%20passed-brightgreen.svg)]()
+[![Offline Demo](https://img.shields.io/badge/demo-offline%20%2F%20reproducible-orange.svg)](docs/demo/DEMO_RUNBOOK.md)
+
+**An enterprise AI-agent platform prototype** with a durable execution
+runtime, a secure MCP tool gateway, OpenTelemetry observability, and
+evaluation-driven release gates. Fully offline demo; real-LLM validation is
+opt-in and budget-gated (currently `REAL_LLM_NOT_RUN`).
+
+## Quick Start (offline demo)
+
+```bash
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt      # Windows
+.venv/Scripts/playwright install chromium           # only for portal demo
+
+# isolated demo identity (NOT a real login)
+export PROCUREAGENT_AUTH_ENABLED=false
+export PROCUREAGENT_DEMO_IDENTITY_HEADER=X-Demo-Actor
+export PROCUREAGENT_WEB_ALLOW_LAUNCH=false
+.venv/Scripts/python -m app.main                    # → http://127.0.0.1:8000
+
+# one-command enterprise security loop (recommended for interviews)
+.venv/Scripts/python -m app.evalops.final_demo
+# → docs/eval/final_enterprise_demo_manifest.json
+```
+
+## Repo layout
+
+```
+app/
+  agent/            orchestration, planning, durable worker
+  api/              HTTP API + Observatory endpoints
+  executors/        API / portal executors, safe-action executor
+  eval/             Phase 8 scoped real-LLM validation harness
+  evalops/          release gates, candidate mutation, durable promotion
+  infrastructure/   SQLite repository, settings
+  mcp_gateway/      secure MCP tool gateway (read-only, policy-gated)
+  observability/    OpenTelemetry tracing + metrics
+  procurement/      FX, verifier, oracle, optimizer, policy, scorer
+  security/         principals, approval guard
+  webui/            Workbench SPA
+tests/              unit / integration / fault-injection / browser E2E
+docs/               contracts, experiments, security, eval artifacts, demo
+```
+
 ## Why ProcureAgent?
 
 Enterprise procurement usually spans several very different supplier channels:
