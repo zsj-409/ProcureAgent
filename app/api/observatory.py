@@ -241,3 +241,65 @@ async def experiment_lab(request: Request) -> dict[str, Any]:
             "policies cut observations 2-4x; REAL_LLM_NOT_RUN"
         ),
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase 10 Commit C — EvalOps release gates (Task 22)
+# ---------------------------------------------------------------------------
+
+@router.get("/observatory/evalops/release-gates")
+async def evalops_release_gates(request: Request) -> dict[str, Any]:
+    """Release Gate evaluation results (Task 21 demo: the unsafe candidate
+    is REJECTED; every gate carries evidence)."""
+
+    gates = _load("release_gate_results.json")
+    candidates = _load("release_candidate_manifest.json")
+    if gates is None:
+        raise HTTPException(status_code=404, detail="release_gate_results.json missing")
+    return {
+        **_artifact_meta("release_gate_results.json"),
+        "data": gates,
+        "candidates": candidates,
+        "honest_boundary": (
+            "gates judge the candidate in a CONTROLLED test environment; "
+            "this is NOT a production safety proof. The unsafe candidate "
+            "(relaxed hard budget) is deliberately constructed for the demo "
+            "and never wired into the real business path."
+        ),
+    }
+
+
+@router.get("/observatory/evalops/shadow")
+async def evalops_shadow(request: Request) -> dict[str, Any]:
+    """Shadow evaluation results (isolated snapshots; candidate never
+    mutates real state)."""
+
+    shadow = _load("shadow_evaluation_results.json")
+    if shadow is None:
+        raise HTTPException(status_code=404, detail="shadow_evaluation_results.json missing")
+    return {
+        **_artifact_meta("shadow_evaluation_results.json"),
+        "data": shadow,
+        "honest_boundary": (
+            "each method runs on an ISOLATED immutable snapshot; the "
+            "candidate never writes real task state, approvals, or orders. "
+            "Tool calls still go through the secure gateway."
+        ),
+    }
+
+
+@router.get("/observatory/evalops/promotion")
+async def evalops_promotion(request: Request) -> dict[str, Any]:
+    """Promotion / rollback history (Task 19 state machine audit trail)."""
+
+    promotion = _load("promotion_history.json")
+    rollback = _load("rollback_history.json")
+    return {
+        **_artifact_meta("promotion_history.json"),
+        "promotion": promotion or [],
+        "rollback": rollback or [],
+        "honest_boundary": (
+            "promotion requires QUALIFIED (no FAIL gates); unsafe candidates "
+            "cannot promote. Rollback preserves the previous version binding."
+        ),
+    }

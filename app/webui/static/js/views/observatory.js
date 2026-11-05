@@ -41,6 +41,12 @@ const LABS = [
     desc: "审批记录 + 版本绑定（实时）",
     path: "approval-inspector",
   },
+  {
+    id: "evalops",
+    label: "EvalOps Release Gates",
+    desc: "候选版本门禁 / Shadow / Promotion（Phase 10）",
+    path: "evalops/release-gates",
+  },
 ];
 
 function renderLabContent(el, lab, body) {
@@ -96,6 +102,33 @@ function renderLabContent(el, lab, body) {
     el.innerHTML =
       `<div class="obs-boundary">审批总数：${count}（绑定 recommendation version，可检测失效版本）</div>`
       + (Object.keys(byTask).length ? table : "<p class='missing'>暂无审批记录（空状态，非零结果）</p>");
+  } else if (lab.id === "evalops") {
+    const unsafe = body.data?.unsafe_candidate;
+    const safe = body.data?.safe_candidate;
+    if (!unsafe) {
+      el.innerHTML = `<div class="obs-boundary">${esc(body.honest_boundary || "")}</div>
+        <p class="missing">Missing：无 Release Gate 结果（artifact 缺失）</p>`;
+      return;
+    }
+    // Unsafe candidate MUST be shown as REJECTED — never an all-green board.
+    const verdictBadge = (v) => v === "REJECTED"
+      ? "<span style='color:#d33;font-weight:bold'>⛔ REJECTED</span>"
+      : v === "QUALIFIED" ? "<span style='color:#3a3;font-weight:bold'>✅ QUALIFIED</span>"
+      : esc(v);
+    const gateRows = (c) => (c?.gates || []).map((g) =>
+      `<tr><td>${esc(g.gate_name)}</td><td>${esc(g.gate_status)}</td>
+       <td>${esc(g.measured_value ?? "-")}</td><td>${esc(g.baseline_value ?? "-")}</td>
+       <td>${esc(g.failure_reason || "-")}</td></tr>`).join("");
+    el.innerHTML = `
+      <div class="obs-boundary">${esc(body.honest_boundary || "")}</div>
+      <h3>Unsafe Candidate（故意放宽硬预算）: ${verdictBadge(unsafe.summary.verdict)}</h3>
+      <p class="dim">失败门禁: ${esc((unsafe.summary.failed_gates || []).join(", ") || "无")}</p>
+      <table><tr><th>gate</th><th>status</th><th>measured</th><th>baseline</th><th>reason</th></tr>
+        ${gateRows(unsafe)}</table>
+      <h3>Safe Baseline: ${verdictBadge(safe.summary.verdict)}</h3>
+      <table><tr><th>gate</th><th>status</th><th>measured</th><th>baseline</th><th>reason</th></tr>
+        ${gateRows(safe)}</table>
+      <p class="dim">每个数字对应 Evidence Artifact（docs/eval/release_gate_results.json）。</p>`;
   }
 }
 

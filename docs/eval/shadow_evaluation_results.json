@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-02",
+  "protocol": "isolated immutable snapshot per method; candidate never writes real state",
+  "result": {
+    "candidate_id": "optimizer-candidate-v1",
+    "baseline_id": "greedy-baseline",
+    "world_hash": "d14d3007b451f2ec",
+    "baseline_decision": {
+      "verified": true,
+      "cost": 162.0,
+      "feasibility": "FULLY_FEASIBLE"
+    },
+    "candidate_decision": {
+      "verified": true,
+      "cost": 162.0,
+      "feasibility": "FULLY_FEASIBLE"
+    },
+    "independent_constraint_result": "OK",
+    "verified_completion_difference": "same",
+    "cost_difference": "0.0",
+    "safety_difference": "none",
+    "trace_ids": [],
+    "runtime_ms": 105,
+    "isolated": true
+  }
+}

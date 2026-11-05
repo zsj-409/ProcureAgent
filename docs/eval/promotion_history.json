@@ -1,0 +1,11 @@
+[
+  {
+    "candidate_id": "baseline-safe",
+    "promoted_by": "evalops-demo",
+    "candidate_version": "baseline-safe",
+    "previous_version": "v0",
+    "evaluation_manifest": "release_gate_results.json",
+    "decision": "PROMOTED",
+    "timestamp": "2026-11-05T03:07:45.353983+00:00"
+  }
+]

@@ -346,6 +346,73 @@ Phase 3 审批治理为前置但本轮不展开 Portal RSI）。
   e2e 通过、历史 benchmark 未修改、无真实付款/默认付费模型调用/生产 Demo Header。
 - 完成标准：可离线启动、安全演示、结果可追溯、架构与局限可解释。
 
+## Phase 10 — Enterprise AgentOps & Secure Tooling（2026-11-02）
+
+### Commit A `b28f21d` — Secure MCP Tool Gateway
+
+- **MCP 协议**：官方 `mcp` Python SDK **2.3.0**（PyPI，Streamable HTTP transport），
+  真实 MCP client ↔ server 互通测试（initialize / tools/list / tools/call）。
+- **Tool Registry**（`app/mcp_gateway/registry.py`）：4 个只读工具
+  （search_supplier_quotes / get_supplier_inventory / get_procurement_policy /
+  get_task_execution_status），ToolCapabilityContract（scope/capability/timeout/
+  retry/rate_limit/result_size）。
+- **ToolPolicyGateway**（`app/mcp_gateway/policy.py`）：12 步执行门禁
+  （身份→注册→scope→task ownership→capability→schema→budget→执行→验证→审计），
+  拒绝默认，masked audit。
+- **绕过防护**：MCP 走 gateway；内部 orchestrator 走 ExecutorRouter（不变）；
+  Worker 恢复不经过 MCP。
+- **Prompt Injection**：结果当 DATA；registry 固定；恶意 description 不能注册新工具。
+- **SDK 坑记录**：mcp 2.3.0 的 Route methods bug（→ app.mount + 自建 ASGI）、
+  Context 必须是 mcpserver.context（非 server.context）、header 小写化、
+  **kwargs 会生成多余字段（→ exec 动态签名）。
+- 依赖变更：**starlette 降到 0.52.1**（mcp 2.3.0 兼容）；pytest 327 passed。
+- 文档：`docs/enterprise/MCP_TOOL_GATEWAY_ARCHITECTURE.md` +
+  `docs/security/MCP_TOOL_POLICY_SPEC.md` + `docs/security/AGENT_TOOL_THREAT_MODEL.md`。
+- 产物：`docs/eval/mcp_tool_registry.json` + `mcp_security_test_results.json`。
+
+### Commit B `6b67016` — OpenTelemetry AgentOps
+
+- **OTel SDK 1.45.2**（sdk/api/exporter-otlp-proto-http）；默认 InMemorySpanExporter
+  （离线/tests），OTLP 显式开启；exporter 故障不破坏采购任务。
+- **Trace 架构**：ProcurementTask root span + 阶段子 span（Interpret/Validate/
+  Collect/Score/Policy/Approval/Finalize），安全元数据（task_id/worker_id/
+  lease_epoch/plan_hash/attempt_id/tool_name/policy_decision/outcome）。
+- **跨进程传播**：W3C traceparent 存 trace_records 表（新增 trace_id/span_id/
+  parent_span_id/lease_epoch 列）；resume 继承同 trace_id（crash+reclaim = 一条
+  trace 两个 worker span，非伪造连续树）。
+- **指标**（严格成本语义）：runtime/tool/safety/cost 计数器；actual_llm_calls/
+  tokens/cost 仅 REAL 递增（REAL_LLM_NOT_RUN 时缺失非 0）；supplier_query_cost/
+  recovery_extra_invocations 为观察代理（非金额）。
+- **接入点**：orchestrator.run/resume 打 span；MCP gateway 每次调用打 tool span
+  （ALLOWED/DENIED + reason）。
+- **OTel 坑记录**：全局 provider 禁止重复 set（→ 进程级缓存 handle）；BatchSpan
+  processor 异步导出需 force_flush；测试间 span 泄漏（→ fixture 前置 clear）。
+- 文档：`docs/observability/AGENTOPS_ARCHITECTURE.md` + TRACE_AND_METRIC_CONTRACT.md
+  + CROSS_PROCESS_TRACE_REPORT.md。
+- 产物：`agent_trace_manifest.json` + `cross_process_trace_results.json` +
+  `agentops_metrics.json`。pytest **343 passed**。
+
+### Commit C `(pending)` — EvalOps CI Release Gates
+
+- **app/evalops/core.py**：ReleaseCandidate（git 真实版本）、20 门禁注册表
+  （10 硬安全门禁 fail-closed）、ReleaseGateEngine（PASS/FAIL/
+  INSUFFICIENT_EVIDENCE/NOT_APPLICABLE/ERROR）、ShadowEvaluator（隔离快照）、
+  PromotionManager（DRAFT→EVALUATING→QUALIFIED→PROMOTED/REJECTED/ROLLED_BACK）。
+- **Task 21 核心演示**：故意不安全 candidate（放宽硬预算）→ 门禁 REJECTED
+  （hard_budget_violation）、无法 promote；安全 baseline QUALIFIED→PROMOTED。
+- **Shadow Evaluation**：真实 GreedyAdapter vs OptimizerAdapter 隔离快照
+  （isolated=true、成本差、无状态污染）。
+- **CI**（.github/workflows/release-gates.yml）：离线全默认（无付费 LLM/真实
+  供应商/付款/凭据）；ruff+pytest+安全回归+MCP 互通+OTel InMemory+Release Gate
+  判定（不安全 candidate 必须 REJECTED）；长 Chromium benchmark 独立 job。
+- **Workbench EvalOps 视图**：Observatory 新增 3 端点（release-gates/shadow/
+  promotion），前端 EvalOps tab 展示 REJECTED candidate（非全绿板）。
+- 文档：docs/evalops/ 4 份 + PHASE10_FINAL_REPORT.md。
+- 产物：release_candidate_manifest.json / release_gate_results.json /
+  shadow_evaluation_results.json / promotion_history.json / rollback_history.json /
+  security_regression_cases.json / phase10_execution_manifest.json。
+- pytest **365 passed**。
+
 - `pytest`：**144 passed**；ruff：clean
 - 崩溃窗口三类动作精确分类：只读（invocation 2, committed 0）、幂等（2, committed 1）、
   非幂等（不重试 → UNKNOWN，committed 保持 1）

@@ -1,0 +1,87 @@
+name: procureagent-release-gates
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # Default CI: fully offline. No paid LLM, no real suppliers, no purchases,
+  # no external private accounts, no production credentials.
+  offline-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . 2>/dev/null || pip install -r requirements.txt
+
+      - name: Ruff
+        run: ruff check app/ tests/ || python -m ruff check app/ tests/
+
+      - name: pytest (full suite, offline)
+        run: |
+          PHASE10_SKIP_MCP_E2E=0 python -m pytest -q 2>&1 | tee pytest_output.txt
+          # fail if any test failed
+          grep -qE "passed" pytest_output.txt
+
+      - name: Safety regression tests
+        run: python -m pytest tests/test_phase10_mcp_gateway.py tests/test_phase10_evalops.py -q
+
+      - name: OTel in-memory trace tests
+        run: python -m pytest tests/test_phase10_otel.py tests/test_phase10_otel_integration.py -q
+
+      - name: Release gate evaluation (unsafe candidate must be REJECTED)
+        run: |
+          python -m app.evalops.unsafe_candidate_demo
+          python -c "
+            import json
+            r = json.load(open('docs/eval/release_gate_results.json'))
+            unsafe = r['unsafe_candidate']['summary']
+            assert unsafe['verdict'] == 'REJECTED', 'unsafe candidate must be rejected'
+            assert 'hard_budget_violation' in unsafe['failed_gates']
+            print('OK: unsafe candidate blocked by release gate')
+          "
+
+      - name: Machine-readable results
+        run: |
+          python -c "
+            import json
+            d = {
+              'date': 'ci-run',
+              'pytest': 'see pytest_output.txt',
+              'gate_verdict': json.load(open('docs/eval/release_gate_results.json'))['unsafe_candidate']['summary']['verdict'],
+            }
+            json.dump(d, open('docs/eval/ci_artifacts.json', 'w'), indent=2)
+          "
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-artifacts
+          path: |
+            docs/eval/*.json
+            pytest_output.txt
+
+  # Long Chromium benchmark: separate job, explicit scope. The Release Gate
+  # verdict is NOT claimed when this job has not run.
+  browser-benchmark:
+    runs-on: ubuntu-latest
+    needs: [offline-gates]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install + playwright
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install chromium --with-deps || true
+      - name: Workbench browser E2E (real Chromium)
+        run: python -m pytest tests/test_phase9_workbench_e2e.py -q

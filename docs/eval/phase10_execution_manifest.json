@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-02",
+  "commits": {
+    "A": "b28f21d",
+    "B": "6b67016",
+    "C": "pending"
+  },
+  "protocol": "mcp 2.3.0 streamable-http",
+  "otel": "opentelemetry 1.45.2 in-memory default",
+  "pytest_before_C": 343,
+  "artifacts": [
+    "mcp_tool_registry.json",
+    "mcp_security_test_results.json",
+    "agent_trace_manifest.json",
+    "cross_process_trace_results.json",
+    "agentops_metrics.json",
+    "release_candidate_manifest.json",
+    "release_gate_results.json",
+    "shadow_evaluation_results.json",
+    "promotion_history.json",
+    "rollback_history.json",
+    "security_regression_cases.json"
+  ]
+}

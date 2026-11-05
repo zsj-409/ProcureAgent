@@ -122,6 +122,17 @@ Gate：Phase 0 → 1 通过。P0-1（审批）已在 Phase 1 封堵；P0-2/3 为
   离线 Demo 章节。
 - 历史 benchmark 未修改；无真实付款；可离线启动。
 
+## Phase 10 完成（2026-11-02，365 passed，3 commits）
+
+- **Commit A `b28f21d`**：Secure MCP Tool Gateway（mcp SDK 2.3.0 真协议、
+  4 只读工具 + 12 步策略门禁 + 互通测试 + 威胁模型）。
+- **Commit B `6b67016`**：OpenTelemetry AgentOps（root/stage spans、W3C
+  跨进程 traceparent 继承、严格成本语义指标、InMemory 默认）。
+- **Commit C**：EvalOps Release Gates（20 门禁、硬安全 fail-closed、Shadow
+  隔离评测、Promotion/Rollback 审计、离线 CI、Workbench EvalOps 视图；
+  故意不安全 candidate 被 REJECTED 的核心演示）。
+- 历史 Phase 4-7 benchmark 字节不变；无真实付款/付费 LLM。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行

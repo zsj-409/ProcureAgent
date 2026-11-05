@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-02",
+  "phase1_3": {
+    "plan_validator_rejects_illegal": true,
+    "hard_budget_not_bypassable": true,
+    "approval_default_deny": true,
+    "approval_cas_atomic": true,
+    "step_claim_atomic": true,
+    "lease_fencing_no_regression": true,
+    "unknown_outcome_no_blind_retry": true,
+    "external_effect_ledger_intact": true
+  },
+  "phase4_7": {
+    "safe_browser_action_contract": true,
+    "session_isolation": true,
+    "non_comparable_quotes_excluded": true,
+    "expired_quotes_rejected": true,
+    "oracle_verifier_valid": true,
+    "partial_not_misreported_full": true,
+    "eval_worlds_independent": true,
+    "historical_benchmark_unchanged": true
+  },
+  "phase9_finalization": {
+    "observatory_auth_not_regressed": true,
+    "demo_header_not_in_production": true,
+    "artifact_status_correct": true,
+    "browser_e2e_passes": true,
+    "real_llm_not_run_label": true,
+    "offline_demo_works": true
+  },
+  "phase10_new": {
+    "mcp_gateway_latency": "measured in tests",
+    "otel_overhead": "best-effort, never blocks task",
+    "evalops_runner_time": "seconds (18 tests in 0.38s)"
+  }
+}
