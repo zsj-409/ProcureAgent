@@ -36,6 +36,8 @@ jobs:
         # The full 414-test suite (browser E2E, cross-process subprocess
         # races, portal recovery) is run locally / in the browser job — the
         # CI gate focuses on the security invariants it must block.
+        # pipefail preserves pytest's exit code through the tee pipe.
+        shell: bash -o pipefail {0}
         run: python -m pytest \
           tests/test_phase10_mcp_gateway.py \
           tests/test_phase10_evalops.py \
@@ -46,7 +48,7 @@ jobs:
           tests/test_phase11b_mutation.py \
           tests/test_phase11b_authz_e2e.py \
           tests/test_phase11b_observatory.py \
-          -q
+          -q 2>&1 | tee pytest_output.txt
 
       - name: Release gate evaluation (unsafe candidate must be REJECTED)
         run: |
@@ -72,11 +74,13 @@ jobs:
           "
 
       - name: Upload artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eval-artifacts
           path: |
             docs/eval/*.json
+            pytest_output.txt
 
   # Long Chromium benchmark: separate job, explicit scope. The Release Gate
   # verdict is NOT claimed when this job has not run.
