@@ -33,22 +33,11 @@ jobs:
 
       - name: Core safety regression suite
         # The release-gate critical tests (fast, offline, cross-platform).
-        # The full 414-test suite (browser E2E, cross-process subprocess
-        # races, portal recovery) is run locally / in the browser job — the
-        # CI gate focuses on the security invariants it must block.
-        # pipefail preserves pytest's exit code through the tee pipe.
+        # Single-line file list — YAML block scalars preserve leading
+        # whitespace, so backslash line-continuation with indentation
+        # produces file names with leading spaces ("file not found").
         shell: bash -o pipefail {0}
-        run: python -m pytest \
-          tests/test_phase10_mcp_gateway.py \
-          tests/test_phase10_evalops.py \
-          tests/test_phase10_otel.py \
-          tests/test_phase10_otel_integration.py \
-          tests/test_phase11a_correctness.py \
-          tests/test_phase11a_otel.py \
-          tests/test_phase11b_mutation.py \
-          tests/test_phase11b_authz_e2e.py \
-          tests/test_phase11b_observatory.py \
-          -q 2>&1 | tee pytest_output.txt
+        run: python -m pytest tests/test_phase10_mcp_gateway.py tests/test_phase10_evalops.py tests/test_phase10_otel.py tests/test_phase10_otel_integration.py tests/test_phase11a_correctness.py tests/test_phase11a_otel.py tests/test_phase11b_mutation.py tests/test_phase11b_authz_e2e.py tests/test_phase11b_observatory.py -q 2>&1 | tee pytest_output.txt
 
       - name: Release gate evaluation (unsafe candidate must be REJECTED)
         run: |
