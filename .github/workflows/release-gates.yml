@@ -42,25 +42,11 @@ jobs:
       - name: Release gate evaluation (unsafe candidate must be REJECTED)
         run: |
           python -m app.evalops.unsafe_candidate_demo
-          python -c "
-            import json
-            r = json.load(open('docs/eval/release_gate_results.json'))
-            unsafe = r['unsafe_candidate']['summary']
-            assert unsafe['verdict'] == 'REJECTED', 'unsafe candidate must be rejected'
-            assert 'hard_budget_violation' in unsafe['failed_gates']
-            print('OK: unsafe candidate blocked by release gate')
-          "
+          python -c "import json; r=json.load(open('docs/eval/release_gate_results.json')); unsafe=r['unsafe_candidate']['summary']; assert unsafe['verdict']=='REJECTED', 'unsafe candidate must be rejected'; assert 'hard_budget_violation' in unsafe['failed_gates']; print('OK: unsafe candidate blocked by release gate')"
 
       - name: Machine-readable results
         run: |
-          python -c "
-            import json
-            d = {
-              'date': 'ci-run',
-              'gate_verdict': json.load(open('docs/eval/release_gate_results.json'))['unsafe_candidate']['summary']['verdict'],
-            }
-            json.dump(d, open('docs/eval/ci_artifacts.json', 'w'), indent=2)
-          "
+          python -c "import json; d={'date':'ci-run','gate_verdict':json.load(open('docs/eval/release_gate_results.json'))['unsafe_candidate']['summary']['verdict']}; json.dump(d, open('docs/eval/ci_artifacts.json','w'), indent=2)"
 
       - name: Upload artifacts
         if: always()
