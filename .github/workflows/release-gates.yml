@@ -70,6 +70,10 @@ jobs:
       - name: Install + playwright
         run: |
           pip install -r requirements.txt
+          # same starlette/mcp override as offline-gates (fastapi pins
+          # starlette<0.47 but mcp 2.3.0 needs 0.52.1)
+          pip install --no-deps starlette==0.52.1
+          pip install mcp==2.3.0
           python -m playwright install chromium --with-deps || true
       - name: Workbench browser E2E (real Chromium)
         run: python -m pytest tests/test_phase9_workbench_e2e.py -q
