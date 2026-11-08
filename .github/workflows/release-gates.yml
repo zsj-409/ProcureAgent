@@ -21,6 +21,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # fastapi pins starlette<0.47 but mcp 2.3.0 needs 0.52.1 (Route API
+          # bug). Install order mirrors the local venv: override starlette
+          # with --no-deps AFTER fastapi, then install mcp (its
+          # starlette>=0.27 requirement is already satisfied by 0.52.1).
+          pip install --no-deps starlette==0.52.1
+          pip install mcp==2.3.0
 
       - name: Ruff
         run: ruff check app/ tests/
