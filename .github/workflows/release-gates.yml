@@ -25,9 +25,11 @@ jobs:
       - name: Ruff
         run: ruff check app/ tests/ || python -m ruff check app/ tests/
 
-      - name: pytest (full suite, offline)
+      - name: pytest (full suite, offline, no browser)
         run: |
-          PHASE10_SKIP_MCP_E2E=0 python -m pytest -q 2>&1 | tee pytest_output.txt
+          # Exclude the real-browser Workbench test — it needs Playwright
+          # chromium, which is installed in the separate browser-benchmark job.
+          python -m pytest -q --ignore=tests/test_phase9_workbench_e2e.py 2>&1 | tee pytest_output.txt
           # fail if any test failed
           grep -qE "passed" pytest_output.txt
 
