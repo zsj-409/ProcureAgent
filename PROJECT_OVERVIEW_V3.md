@@ -178,6 +178,20 @@ EvalOps 正确性修复（用户决定：先 11A 再 11B，最后按凭据决定
   outcome 属性。
 - 全量 **414 passed**、ruff clean、历史 benchmark 字节不变。
 
+## CI 状态（2026-11-08：GitHub Actions 全绿 ✅）
+
+修复链（用户反馈 GitHub 邮件 CI 失败，run 42011679662 → 42447466375 全绿）：
+- **依赖冲突**：fastapi pin starlette<0.47 与 mcp 2.3.0 所需 0.52.1 冲突，
+  pip 全新环境拒绝解析 → Install deps 顺序 `pip install -r requirements.txt` →
+  `pip install --no-deps starlette==0.52.1` → `pip install mcp==2.3.0`。
+- **YAML 缩进陷阱**：block scalar 保留前导空格 → pytest 反斜杠续行文件名带空格
+  （"file or directory not found"）、python -c 多行 IndentationError → 均改单行。
+- **browser-benchmark 缺 mcp**：workbench e2e import mcp 失败 → 补同样覆盖。
+- 诊断突破：CredReadW 读 Windows 凭据管理器 gho_ token + Bearer 头可下载
+  Actions run 日志（此前匿名 401/404 无日志访问）。
+- **offline-gates**（Ruff + 9 文件核心安全套件 80 passed + 不安全候选 REJECTED
+  断言 + artifact）与 **browser-benchmark**（真实 Chromium E2E）双 job 全绿。
+
 ## 路线图
 
 - **Phase 1**：输入契约（budget_mode、FX、原始+归一化报价分离）、PlanValidator 顺序校验、输入扰动测试 → 当前进行

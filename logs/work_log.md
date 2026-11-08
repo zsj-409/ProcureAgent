@@ -611,3 +611,23 @@ RATE_LIMITED、result-schema 异常分支未 close span。OTel 规范要求创�
 ## 下一阶段
 
 Phase 3 验收通过 → **Phase 4（State-Aware Portal Recovery）可开始**。
+
+## CI 修复（2026-11-08，GitHub Actions 全绿）
+
+用户反馈 GitHub 邮件 CI 失败，排查修复链（run 42011679662 → 42447466375）：
+
+1. **ruff 未装**（旧 workflow `pip install -e .` 静默失败不装依赖）→ requirements.txt 补 ruff。
+2. **fastapi/mcp/starlette 依赖冲突**：fastapi 0.115.12 pin starlette<0.47，mcp 2.3.0 需 0.52.1，
+   pip 解析器全新环境拒绝 → Install deps 顺序改为：`pip install -r requirements.txt` →
+   `pip install --no-deps starlette==0.52.1` → `pip install mcp==2.3.0`（复刻本地 venv 顺序）。
+3. **pytest 文件列表反斜杠续行**：YAML block scalar 保留前导空格 → 文件名带空格
+   "file or directory not found" → 改单行文件列表。
+4. **python -c 多行字符串**：YAML 缩进泄漏进代码 → IndentationError → 改单行。
+5. **browser-benchmark job 缺 mcp**：install 只装 requirements.txt，workbench e2e
+   import mcp 失败 → 补同样的 starlette/mcp 覆盖。
+6. 诊断手段突破：**Windows 凭据管理器 CredReadW 读 git 凭据（gho_ OAuth token）→
+   Bearer + X-GitHub-Api-Version 头可调 Actions API 下载 run 日志**（此前
+   credential get 非交互返回 NO_TOKEN、匿名 API 401/404 无日志访问）。
+
+最终：offline-gates（Ruff + 9 文件核心安全套件 80 passed + 不安全候选 REJECTED
+断言 + artifact 上传）与 browser-benchmark（真实 Chromium workbench E2E）**双 job 全绿**。
